@@ -27,7 +27,7 @@ parser.add_argument('-cep', '--content-encoder-path', default="content_encoder.p
 parser.add_argument('-pep', '--pitch-estimator-path', default="pitch_estimator.pt")
 parser.add_argument('-d', '--device', default='cpu')
 parser.add_argument('-e', '--epoch', default=100, type=int)
-parser.add_argument('-b', '--batch-size', default=3, type=int)
+parser.add_argument('-b', '--batch-size', default=4, type=int)
 parser.add_argument('-lr', '--learning-rate', default=1e-4, type=float)
 parser.add_argument('-len', '--length', default=131072, type=int)
 parser.add_argument('-m', '--max-data', default=-1, type=int)
@@ -83,8 +83,8 @@ scaler = torch.cuda.amp.GradScaler(enabled=args.fp16)
 OptG = optim.AdamW(dec.parameters(), lr=args.learning_rate)
 OptD = optim.AdamW(D.parameters(), lr=args.learning_rate)
 
-SchedulerG = optim.lr_scheduler.ExponentialLR(OptG, 0.98)
-SchedulerD = optim.lr_scheduler.ExponentialLR(OptD, 0.98)
+SchedulerG = optim.lr_scheduler.ExponentialLR(OptG, 0.99)
+SchedulerD = optim.lr_scheduler.ExponentialLR(OptD, 0.99)
 
 mel = torchaudio.transforms.MelSpectrogram(n_fft=1024, n_mels=80).to(device)
 

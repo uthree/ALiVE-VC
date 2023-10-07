@@ -49,6 +49,8 @@ class Decoder(nn.Module):
         mag, phase = self.output_layer(x).chunk(2, dim=1)
         mag = torch.clamp_max(mag, 6.0)
         mag = torch.exp(mag)
+        mag = mag.to(torch.float)
+        phase = phase.to(torch.float)
         s = mag * (torch.cos(phase) + 1j * torch.sin(phase))
         return torch.istft(s, n_fft=self.n_fft, center=True, hop_length=256, onesided=True)
 

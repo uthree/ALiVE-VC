@@ -5,11 +5,11 @@
 |---| --- | ---|
 |`--device`| `-d` | set training device. you can use `cpu`, `cuda` or `mps` |
 |`--epoch`|  `-e` | number of epochs |
-|`--batch`| `-b`| batch size. default is `3`, decrase this if not enough memory |
+|`--batch`| `-b`| batch size. default is `4`, decrase this if not enough memory |
 |`--learning-rate`| `-lr` | learning rate |
 |`--length`|`-len` | data length. default is `131072` |
 |`--max-data`| `-m` | max number of data file. |
-|  |`-fp16 True`| use 16-bit floating point (deprecated )|
+|  |`-fp16 True`| use 16-bit floating point |
 
 ## realtime_inference.py
 | Option name | Alias | Description |
