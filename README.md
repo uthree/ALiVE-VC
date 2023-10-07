@@ -8,7 +8,7 @@ A lightweight vector-search based AI voice conversion system
 - PyTorch 2.0 or later
 - PyTorch GPU environment
 
-## Usage
+## Usage (train full-scratch)
 1. Clone this repository and move directory.
 ```sh
 git clone https://github.com/uthree/zvc
