@@ -25,7 +25,7 @@ parser.add_argument('-o', '--output', default=0, type=int)
 parser.add_argument('-l', '--loopback', default=-1, type=int)
 parser.add_argument('-ig', '--input-gain', default=1.0, type=float)
 parser.add_argument('-g', '--gain', default=1.0, type=float)
-parser.add_argument('-thr', '--threshold', default=-40.0, type=float)
+parser.add_argument('-thr', '--threshold', default=20.0, type=float)
 parser.add_argument('-dep', '--decoder-path', default="decoder.pt")
 parser.add_argument('-cep', '--content-encoder-path', default="content_encoder.pt")
 parser.add_argument('-pep', '--pitch-estimator-path', default="pitch_estimator.pt")
@@ -38,7 +38,7 @@ parser.add_argument('-f0', '--f0-rate', default=0, type=float)
 parser.add_argument('-t', '--target', default='target.wav')
 parser.add_argument('-isr', '--internal-sampling-rate', default=16000, type=int)
 parser.add_argument('-k', default=4, type=int)
-parser.add_argument('-a', '--alpha', default=0.1, type=float)
+parser.add_argument('-a', '--alpha', default=0.0, type=float)
 parser.add_argument('-compile', default=False, type=bool)
 parser.add_argument('-fp16', default=False, type=bool)
 
@@ -74,7 +74,9 @@ print("encoding target...")
 wf, sr = torchaudio.load(args.target)
 wf = wf.to(device)
 wf = torchaudio.functional.resample(wf, sr, 16000)
-tgt = CE(spectrogram(wf)).detach()
+tgt = CE(spectrogram(wf))[:, :, ::4].detach()
+
+print(f"loaded {tgt.shape[2]} words.")
 
 
 if args.compile:
@@ -102,7 +104,9 @@ stream_loopback = audio.open(
         output_device_index=args.loopback,
         output=True) if args.loopback != -1 else None
 
-print("Converting Voice...")
+args.threshold = args.threshold - 80
+
+print("converting voice...")
 print("")
 bar = tqdm()
 while True:
@@ -135,7 +139,7 @@ while True:
                 content = match_features(content, tgt, k=args.k, alpha=args.alpha)
                 data = Dec(content, pitch)
 
-                bar.set_description(desc=f"Loudness: {loudness+80:.4f} dB, F0: {pitch.mean().item():.4f} Hz")
+                bar.set_description(desc=f"Loudness: {loudness+80:.4f} dB, F0: {pitch.mean().item() / args.f0_rate:.4f} Hz")
 
             else:
                 data = data * 0
