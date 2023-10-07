@@ -29,7 +29,7 @@
 ||`-k`| kNN回帰のKの数。デフォルトは`4`。 |
 
 ## inference.py
-| Option name | Alias | Description |
+| オプション名 | 略 | 備考 |
 |---| --- | ---|
 |`--target`|`-t`| 変換先となる音声が録音された音声ファイル |
 |`-device`| `-d` | 推論を行うデバイス |
