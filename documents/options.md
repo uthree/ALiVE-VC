@@ -7,7 +7,7 @@
 |`--epoch`|  `-e` | number of epochs |
 |`--batch`| `-b`| batch size. default is `4`, decrase this if not enough memory |
 |`--learning-rate`| `-lr` | learning rate |
-|`--length`|`-len` | data length. default is `131072` |
+|`--length`|`-len` | data length. default is `65536` |
 |`--max-data`| `-m` | max number of data file. |
 |  |`-fp16 True`| use 16-bit floating point |
 
