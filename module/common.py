@@ -70,7 +70,6 @@ class AdaptiveConvNeXt1d(nn.Module):
         res = x
         x = self.dw_conv(x)
         x = self.norm(x, p)
-        x[:, 0, :] += torch.randn(x.shape[0], x.shape[2], device=x.device)
         x = self.pw_conv1(x)
         x = F.gelu(x)
         x = self.pw_conv2(x)
@@ -81,7 +80,7 @@ class AdaptiveConvNeXt1d(nn.Module):
 # helper functions
 
 
-def match_features(source, reference, k=4, alpha=0.0):
+def match_features(source, reference, k=4, alpha=0.0, norm=True, mode='IP'):
     input_data = source
     with torch.no_grad():
         # source: [N, 768, Length], reference: [N, 768, Length]
@@ -89,7 +88,13 @@ def match_features(source, reference, k=4, alpha=0.0):
         reference = reference.transpose(1, 2)
         source_norm = torch.norm(source, dim=2, keepdim=True)
         reference_norm = torch.norm(reference, dim=2, keepdim=True)
-        cos_sims = torch.bmm((source / source_norm), (reference / reference_norm).transpose(1, 2))
+        if not norm:
+            reference_norm = 1
+            source_norm = 1
+        if mode == 'IP':
+            cos_sims = torch.bmm((source / source_norm), (reference / reference_norm).transpose(1, 2))
+        elif mode == 'Dist':
+            cos_sims = torch.cdist((source / source_norm), (reference / reference_norm))
         best = torch.topk(cos_sims, k, dim=2)
         result = torch.stack([reference[n][best.indices[n]] for n in range(source.shape[0])], dim=0).mean(dim=2)
         result = result.transpose(1, 2)

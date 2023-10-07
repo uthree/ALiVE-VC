@@ -27,9 +27,9 @@ parser.add_argument('-cep', '--content-encoder-path', default="content_encoder.p
 parser.add_argument('-pep', '--pitch-estimator-path', default="pitch_estimator.pt")
 parser.add_argument('-d', '--device', default='cpu')
 parser.add_argument('-e', '--epoch', default=100, type=int)
-parser.add_argument('-b', '--batch-size', default=4, type=int)
+parser.add_argument('-b', '--batch-size', default=3, type=int)
 parser.add_argument('-lr', '--learning-rate', default=1e-4, type=float)
-parser.add_argument('-len', '--length', default=65536, type=int)
+parser.add_argument('-len', '--length', default=98304, type=int)
 parser.add_argument('-m', '--max-data', default=-1, type=int)
 parser.add_argument('-fp16', default=False, type=bool)
 parser.add_argument('-gacc', '--gradient-accumulation', default=1, type=int)
@@ -101,7 +101,7 @@ for epoch in range(args.epoch):
         with torch.cuda.amp.autocast(enabled=args.fp16):
             f0 = pe.estimate(spec)
             content = ce(spec)
-            content = match_features(content, ce(target), alpha=0.1).detach()
+            content = match_features(content, ce(target), alpha=0).detach()
             fake_wave = dec(content, f0)
             logits = D.logits(fake_wave)
             
