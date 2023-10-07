@@ -19,7 +19,7 @@ parser = argparse.ArgumentParser(description="train pitch estimator")
 parser.add_argument('dataset')
 parser.add_argument('-mp', '--model-path', default="pitch_estimator.pt")
 parser.add_argument('-d', '--device', default='cpu')
-parser.add_argument('-e', '--epoch', default=1000, type=int)
+parser.add_argument('-e', '--epoch', default=100, type=int)
 parser.add_argument('-b', '--batch-size', default=16, type=int)
 parser.add_argument('-lr', '--learning-rate', default=1e-4, type=float)
 parser.add_argument('-len', '--length', default=65536, type=int)
@@ -64,6 +64,7 @@ for epoch in range(args.epoch):
     for batch, (wave, f0) in enumerate(dl):
         wave = wave.to(device)
         spec = spectrogram(wave)
+        f0 = f0.to(device)
         
         # Train G.
         optimizer.zero_grad()
