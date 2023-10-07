@@ -1,6 +1,11 @@
 # ZVC
 A lightweight vector-search based AI voice conversion system
 
+## Requirements
+- Python 3.10 or later
+- PyTorch 2.0 or later
+- PyTorch GPU environment
+
 ## Usage
 1. Clone this repository and move directory.
 ```sh
