@@ -15,6 +15,7 @@ from module.content_encoder import ContentEncoder
 from module.pitch_estimator import PitchEstimator
 from module.decoder import Decoder
 from module.discriminator import Discriminator
+from module.common import match_features
 
 parser = argparse.ArgumentParser(description="train Vocoder")
 
@@ -25,9 +26,9 @@ parser.add_argument('-cep', '--content-encoder-path', default="content_encoder.p
 parser.add_argument('-pep', '--pitch-estimator-path', default="pitch_estimator.pt")
 parser.add_argument('-d', '--device', default='cpu')
 parser.add_argument('-e', '--epoch', default=100, type=int)
-parser.add_argument('-b', '--batch-size', default=1, type=int)
+parser.add_argument('-b', '--batch-size', default=4, type=int)
 parser.add_argument('-lr', '--learning-rate', default=2e-4, type=float)
-parser.add_argument('-len', '--length', default=65536, type=int)
+parser.add_argument('-len', '--length', default=131072, type=int)
 parser.add_argument('-m', '--max-data', default=-1, type=int)
 parser.add_argument('-fp16', default=False, type=bool)
 parser.add_argument('-gacc', '--gradient-accumulation', default=1, type=int)
@@ -89,15 +90,17 @@ mel = torchaudio.transforms.MelSpectrogram(n_fft=1024, n_mels=80).to(device)
 for epoch in range(args.epoch):
     tqdm.write(f"Epoch #{epoch}")
     bar = tqdm(total=len(ds))
-    for batch, wave in enumerate(dl):
-        wave = wave.to(device)
-        spec = spectrogram(wave)
+    for batch, wave_data in enumerate(dl):
+        wave_data = wave_data.to(device)
+        wave, _ = wave_data.chunk(2, dim=1)
+        spec, target = spectrogram(wave_data).chunk(2, dim=2)
         
         # Train G.
         OptG.zero_grad()
         with torch.cuda.amp.autocast(enabled=args.fp16):
             f0 = pe.estimate(spec)
             content = ce(spec)
+            content = match_features(content, ce(target)).detach()
             fake_wave = dec(content, f0)
             logits = D.logits(fake_wave)
             
