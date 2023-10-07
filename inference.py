@@ -48,6 +48,7 @@ wf = wf.to(device)
 wf = torchaudio.functional.resample(wf, sr, 16000)
 wf = wf[:1]
 tgt = CE(spectrogram(wf)).detach()
+print(f"loaded {tgt.shape[2]} words.")
 
 
 paths = glob.glob(os.path.join(args.inputs, "*"))
