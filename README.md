@@ -1,6 +1,8 @@
 # ZVC
 A lightweight vector-search based AI voice conversion system
 
+[日本語](https://github.com/uthree/zvc/blob/main/documents/readme_ja.md)
+
 ## Requirements
 - Python 3.10 or later
 - PyTorch 2.0 or later
