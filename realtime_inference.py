@@ -73,7 +73,7 @@ Dec.load_state_dict(torch.load(args.decoder_path, map_location=device))
 print("encoding target...")
 wf, sr = torchaudio.load(args.target)
 wf = wf.to(device)
-wf = torchaudio.functional.resample(wf, sr, 16000)
+wf = torchaudio.functional.resample(wf, sr, 16000)[:1]
 tgt = CE(spectrogram(wf))[:, :, ::4].detach()
 
 print(f"loaded {tgt.shape[2]} words.")

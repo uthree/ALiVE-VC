@@ -13,6 +13,8 @@ from module.decoder import Decoder
 from module.common import match_features
 
 parser = argparse.ArgumentParser()
+parser.add_argument('-i', '--inputs', default="./inputs/")
+parser.add_argument('-o', '--outputs', default="./outputs/")
 parser.add_argument('-dep', '--decoder-path', default="decoder.pt")
 parser.add_argument('-disp', '--discriminator-path', default="discriminator.pt")
 parser.add_argument('-cep', '--content-encoder-path', default="content_encoder.pt")
@@ -35,8 +37,8 @@ PE.load_state_dict(torch.load(args.pitch_estimator_path, map_location=device))
 CE.load_state_dict(torch.load(args.content_encoder_path, map_location=device))
 Dec.load_state_dict(torch.load(args.decoder_path, map_location=device))
 
-if not os.path.exists("./outputs/"):
-    os.mkdir("./outputs")
+if not os.path.exists(args.outputs):
+    os.mkdir(args.outputs)
 
 print("encoding target...")
 wf, sr = torchaudio.load(args.target)
@@ -46,7 +48,7 @@ wf = wf[:1]
 tgt = CE(spectrogram(wf)).detach()
 
 
-paths = glob.glob("./inputs/*.wav")
+paths = glob.glob(os.path.join(args.inputs, "*"))
 for i, path in enumerate(paths):
     wf, sr = torchaudio.load(path)
     wf = wf.to(device)
