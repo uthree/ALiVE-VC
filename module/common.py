@@ -70,6 +70,7 @@ class AdaptiveConvNeXt1d(nn.Module):
         res = x
         x = self.dw_conv(x)
         x = self.norm(x, p)
+        x[:, 0, :] += torch.randn(x.shape[0], x.shape[2], device=x.device)
         x = self.pw_conv1(x)
         x = F.gelu(x)
         x = self.pw_conv2(x)
