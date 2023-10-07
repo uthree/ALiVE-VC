@@ -28,7 +28,7 @@ parser.add_argument('-pep', '--pitch-estimator-path', default="pitch_estimator.p
 parser.add_argument('-d', '--device', default='cpu')
 parser.add_argument('-e', '--epoch', default=100, type=int)
 parser.add_argument('-b', '--batch-size', default=4, type=int)
-parser.add_argument('-lr', '--learning-rate', default=2e-4, type=float)
+parser.add_argument('-lr', '--learning-rate', default=1e-4, type=float)
 parser.add_argument('-len', '--length', default=131072, type=int)
 parser.add_argument('-m', '--max-data', default=-1, type=int)
 parser.add_argument('-fp16', default=False, type=bool)
@@ -136,10 +136,10 @@ for epoch in range(args.epoch):
         N = wave.shape[0]
         bar.update(N)
 
-        if batch % 100 == 0:
+        if batch % 300 == 0:
             save_models(dec, D)
-    SchedulerD.step(1)
-    SchedulerG.step(1)
+    SchedulerD.step()
+    SchedulerG.step()
 
 print("Training Complete!")
 save_models(dec, D)

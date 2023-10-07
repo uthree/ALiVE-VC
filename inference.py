@@ -42,6 +42,7 @@ print("encoding target...")
 wf, sr = torchaudio.load(args.target)
 wf = wf.to(device)
 wf = torchaudio.functional.resample(wf, sr, 16000)
+wf = wf[:1]
 tgt = CE(spectrogram(wf)).detach()
 
 

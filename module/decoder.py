@@ -6,11 +6,11 @@ from module.common import AdaptiveConvNeXt1d, AdaptiveChannelNorm
 
 
 class F0Encoder(nn.Module):
-    def __init__(self, output_dim=128):
+    def __init__(self, output_dim=512):
         super().__init__()
         self.c1 = nn.Conv1d(1, output_dim, 1, 1, 0)
         self.c2 = nn.Conv1d(output_dim, output_dim, 1, 1, 0)
-        self.c1.weight.data.normal_(0, 0.01)
+        self.c1.weight.data.normal_(0, 0.3)
 
     def forward(self, x):
         x = self.c1(x)
@@ -24,7 +24,7 @@ class Decoder(nn.Module):
                  input_channels=768,
                  internal_channels=512,
                  hidden_channels=1536,
-                 f0_channels=128,
+                 f0_channels=512,
                  n_fft=1024,
                  num_layers=8):
         super().__init__()

@@ -15,9 +15,9 @@ class PeriodicDiscriminator(nn.Module):
                  kernel_size=5,
                  stride=3,
                  num_stages=4,
-                 dropout_rate=0.2,
+                 dropout_rate=0.0,
                  groups = [],
-                 max_channels=256
+                 max_channels=1024
                  ):
         super().__init__()
         self.input_layer = weight_norm(
@@ -84,8 +84,8 @@ class PeriodicDiscriminator(nn.Module):
 class MultiPeriodicDiscriminator(nn.Module):
     def __init__(self,
                  periods=[2, 3, 5, 7, 11],
-                 groups=[1, 2, 4, 4, 4],
-                 channels=32,
+                 groups=[1, 4, 16, 16, 16],
+                 channels=64,
                  kernel_size=5,
                  stride=3,
                  num_stages=4,
@@ -174,35 +174,6 @@ class MultiResolutionDiscriminator(nn.Module):
         feats = []
         for sd in self.sub_discriminators:
             feats += sd.feat(x)
-        return feats
-
-
-class ScaleDiscriminator(nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.convs = nn.ModuleList([
-            nn.AvgPool1d(2),
-            weight_norm(nn.Conv1d(1, 64, 41, 4, 0)),
-            weight_norm(nn.Conv1d(64, 64, 41, 4, 0)),
-            weight_norm(nn.Conv1d(64, 64, 41, 4, 0)),
-            weight_norm(nn.Conv1d(64, 64, 41, 4, 0)),
-            weight_norm(nn.Conv1d(64, 1, 41, 4, 0)),
-            ])
-
-    def forward(self, x):
-        x = x.unsqueeze(1)
-        for conv in self.convs:
-            x = conv(x)
-            x = F.leaky_relu(x, LRELU_SLOPE)
-        return x
-
-    def feat(self, x):
-        feats = []
-        x = x.unsqueeze(1)
-        for conv in self.convs:
-            x = conv(x)
-            x = F.leaky_relu(x, LRELU_SLOPE)
-            feats.append(x)
         return feats
 
 
