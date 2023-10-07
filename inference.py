@@ -5,6 +5,7 @@ import torchaudio
 import os
 import glob
 import torch
+from tqdm import tqdm
 
 from module.spectrogram import spectrogram
 from module.pitch_estimator import PitchEstimator
@@ -25,6 +26,7 @@ parser.add_argument('-d', '--device', default='cpu')
 parser.add_argument('-g', '--gain', default=1.0, type=float)
 parser.add_argument('-a', '--alpha', default=0.1, type=float)
 parser.add_argument('-k', default=4, type=int)
+parser.add_argument('-c', '--chunk', default=131072, type=int)
 
 args = parser.parse_args()
 
@@ -51,17 +53,25 @@ tgt = CE(spectrogram(wf)).detach()
 paths = glob.glob(os.path.join(args.inputs, "*"))
 for i, path in enumerate(paths):
     wf, sr = torchaudio.load(path)
-    wf = wf.to(device)
+    wf = wf.to('cpu')
     wf = torchaudio.functional.resample(wf, sr, 16000)
     wf = wf[:1]
+    total_length = wf.shape[1]
+    chunks = torch.split(wf, args.chunk, dim=1)
+    result = []
     with torch.no_grad():
         print(f"converting {path}")
-        spec = spectrogram(wf)
-        f0 = PE.estimate(spec) * args.f0_rate
-        feat = CE(spec)
-        feat = match_features(feat, tgt, k=args.k, alpha=args.alpha)
-        wf = Dec(feat, f0)
-        
+        for chunk in tqdm(chunks):
+            if chunk.shape[1] < args.chunk:
+                chunk = torch.cat([chunk, torch.zeros(1, args.chunk - chunk.shape[1])], dim=1)
+            chunk = chunk.to(device)
+            spec = spectrogram(chunk)
+            f0 = PE.estimate(spec) * args.f0_rate
+            feat = CE(spec)
+            feat = match_features(feat, tgt, k=args.k, alpha=args.alpha)
+            chunk = Dec(feat, f0)
+            result.append(chunk.to('cpu'))
+        wf = torch.cat(result, dim=1)[:, :total_length]
         wf = torchaudio.functional.resample(wf, 16000, sr) * args.gain
     wf = wf.cpu().detach()
     torchaudio.save(filepath=os.path.join("./outputs/", f"{i}.wav"), src=wf, sample_rate=sr)
