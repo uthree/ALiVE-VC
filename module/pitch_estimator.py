@@ -1,0 +1,33 @@
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+from module.common import ConvNeXt1d, ChannelNorm
+
+
+class PitchEstimator(nn.Module):
+    def __init__(self,
+                 n_fft=1024,
+                 internal_channels=256,
+                 hidden_channels=512,
+                 output_channels=1100,
+                 num_layers=4):
+        super().__init__()
+        self.input_layer = nn.Conv1d(n_fft//2+1, internal_channels, 1)
+        self.mid_layers = nn.Sequential(*[ConvNeXt1d(internal_channels, hidden_channels, scale=1/num_layers)
+                                          for _ in range(num_layers)])
+        self.last_norm = ChannelNorm(internal_channels)
+        self.output_layer = nn.Conv1d(internal_channels, output_channels, 1)
+
+    def forward(self, x):
+        x = self.input_layer(x)
+        x = self.mid_layers(x)
+        x = self.last_norm(x)
+        x = self.output_layer(x)
+        return x
+
+    def estimate(self, x):
+        dtype = x.dtype
+        with torch.no_grad():
+            x = self.forward(x)
+            return torch.argmax(x, dim=1, keepdim=True).to(x.dtype)
