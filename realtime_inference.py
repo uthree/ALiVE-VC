@@ -29,7 +29,7 @@ parser.add_argument('-thr', '--threshold', default=-40.0, type=float)
 parser.add_argument('-dep', '--decoder-path', default="decoder.pt")
 parser.add_argument('-cep', '--content-encoder-path', default="content_encoder.pt")
 parser.add_argument('-pep', '--pitch-estimator-path', default="pitch_estimator.pt")
-parser.add_argument('-b', '--buffersize', default=12, type=int)
+parser.add_argument('-b', '--buffersize', default=16, type=int)
 parser.add_argument('-c', '--chunk', default=3072, type=int)
 parser.add_argument('-ic', '--inputchannels', default=1, type=int)
 parser.add_argument('-oc', '--outputchannels', default=1, type=int)
@@ -38,6 +38,7 @@ parser.add_argument('-f0', '--f0-rate', default=0, type=float)
 parser.add_argument('-t', '--target', default='target.wav')
 parser.add_argument('-isr', '--internal-sampling-rate', default=16000, type=int)
 parser.add_argument('-k', default=4, type=int)
+parser.add_argument('-a', '--alpha', default=0.1, type=float)
 parser.add_argument('-compile', default=False, type=bool)
 parser.add_argument('-fp16', default=False, type=bool)
 
@@ -122,26 +123,26 @@ while True:
     with torch.no_grad():
         with torch.cuda.amp.autocast(enabled=args.fp16):
             # Downsample
-            data = torchaudio.functional.resample(data, 44100, 22050)
+            data = torchaudio.functional.resample(data, 44100, 16000)
             # Calculate loudness
-            loudness = torchaudio.functional.loudness(data, 22050)
+            loudness = torchaudio.functional.loudness(data, 16000)
             if loudness.item() > args.threshold:
                 # to spectrogram
                 spec = spectrogram(data)
                 # convert voice
                 content = CE(spec)
                 pitch = PE.estimate(spec) * args.f0_rate
-                content = match_features(content, tgt, k=args.k)
+                content = match_features(content, tgt, k=args.k, alpha=args.alpha)
                 data = Dec(content, pitch)
 
-                bar.set_description(desc=f"Loudness: {loudness:.4f} dB, F0: {pitch.mean().item():.4f} Hz")
+                bar.set_description(desc=f"Loudness: {loudness+80:.4f} dB, F0: {pitch.mean().item():.4f} Hz")
 
             else:
                 data = data * 0
             # gain
             data = torchaudio.functional.gain(data, args.gain)
             # Upsample
-            data = torchaudio.functional.resample(data, 22050, args.internal_sampling_rate)
+            data = torchaudio.functional.resample(data, 16000, args.internal_sampling_rate)
             data = torchaudio.functional.resample(data, args.internal_sampling_rate, 44100)
             data = data[0]
 

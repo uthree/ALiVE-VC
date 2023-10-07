@@ -21,6 +21,8 @@ parser.add_argument('-f0', '--f0-rate', default=1.0, type=float)
 parser.add_argument('-t', '--target', default='target.wav')
 parser.add_argument('-d', '--device', default='cpu')
 parser.add_argument('-g', '--gain', default=1.0, type=float)
+parser.add_argument('-a', '--alpha', default=0.1, type=float)
+parser.add_argument('-k', default=4, type=int)
 
 args = parser.parse_args()
 
@@ -54,7 +56,7 @@ for i, path in enumerate(paths):
         spec = spectrogram(wf)
         f0 = PE.estimate(spec) * args.f0_rate
         feat = CE(spec)
-        feat = match_features(feat, tgt, k=4)
+        feat = match_features(feat, tgt, k=args.k, alpha=args.alpha)
         wf = Dec(feat, f0)
         
         wf = torchaudio.functional.resample(wf, 16000, sr) * args.gain
