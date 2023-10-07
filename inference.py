@@ -73,6 +73,7 @@ for i, path in enumerate(paths):
             chunk = Dec(feat, f0)
             result.append(chunk.to('cpu'))
         wf = torch.cat(result, dim=1)[:, :total_length]
-        wf = torchaudio.functional.resample(wf, 16000, sr) * args.gain
+        wf = torchaudio.functional.resample(wf, 16000, sr)
+        wf = torchaudio.functional.gain(wf, args.gain)
     wf = wf.cpu().detach()
-    torchaudio.save(filepath=os.path.join("./outputs/", f"{i}.wav"), src=wf, sample_rate=sr)
+    torchaudio.save(filepath=os.path.join("./outputs/", f"{os.path.splitext(os.path.basename(path))[0]}.wav"), src=wf, sample_rate=sr)
