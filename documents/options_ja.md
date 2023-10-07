@@ -24,36 +24,36 @@
 |`--chunk`| `-c` | チャンクサイズ デフォルトは`3072` |
 |`--buffersize`,| `-b` | バッファ数 デフォルトは`8`|
 || `-fp16 True`| 16ビット浮動小数点数を利用するかどうか |
-|`-f0-rate` | `-f0`| 周波数の倍率。 |
+|`-f0-rate` | `-f0`| F0周波数の倍率。 |
 |`--alpha`| `-a` | どれくらい元の音声を混ぜるかの割合。 デフォルトは `0`。 |
 ||`-k`| kNN回帰のKの数。デフォルトは`4`。 |
 
 ## inference.py
 | Option name | Alias | Description |
 |---| --- | ---|
-|`--target`|`-t`| target speaker's speaking file |
-|`-device`| `-d` | set inferencing device. you can use `cpu`, `cuda` or `mps` |
-|| `-fp16 True`| use 16-bit floatation point (deprecated)|
-|`-f0-rate` | `-f0`| rate of F0 pitch |
-|`--alpha`| `-a` | bypass level. default is `0`. |
-||`-k`| k of kNN regression. |
+|`--target`|`-t`| 変換先となる音声が録音された音声ファイル |
+|`-device`| `-d` | 推論を行うデバイス |
+|| `-fp16 True`| 16ビット浮動小数点数を利用するかどうか |
+|`-f0-rate` | `-f0`| F0周波数の倍率 |
+|`--alpha`| `-a` | どれくらい元の音声を混ぜるかの割合。デフォルトは `0`。 |
+||`-k`| kNN回帰のKの数。デフォルトは`4`。 |
 
 
-## Inferencing parameters
+## 推論パラメータ
 
-### F0 Rate
-F0 rate is multiplier of F0-pitch.
+### F0 レート
+F0 レートは。周波数の倍率を表します。
 
-set `0.5` to convert female voice to male voice.
-
-set `2.0` to convert male voice to female voice.
+もし男性から女性への音声変換を行うのであれば`2.0`を設定し、逆の場合は`0.5`。を設定するとよいでしょう。
 
 ### k
-K nearest-neighbor regression's K.
+kNN回帰のk。の数。
 
-default is `4`.
+デフォルトは `4`。
 
-voice will become smoother if increase this.
+これを増やすと音声が滑らかになる。
 
 ### alpha
-Parameter for how much of the original audio is transmitted.
+元の音声をどれだけ混ぜるかの割合。 `0.0`から`1.0`の間で指定。
+
+上げすぎると元の声をそのまま出力してしまうので注意。
