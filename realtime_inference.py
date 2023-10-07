@@ -8,8 +8,11 @@ from module.common import match_features
 from module.decoder import Decoder
 from module.content_encoder import ContentEncoder
 from module.pitch_estimator import PitchEstimator
+from module.logo import print_logo
 import json
 import pyaudio
+
+print_logo()
 
 parser = argparse.ArgumentParser(description="Convert voice")
 
@@ -25,7 +28,7 @@ parser.add_argument('-thr', '--threshold', default=-40.0, type=float)
 parser.add_argument('-dep', '--decoder-path', default="decoder.pt")
 parser.add_argument('-cep', '--content-encoder-path', default="content_encoder.pt")
 parser.add_argument('-pep', '--pitch-estimator-path', default="pitch_estimator.pt")
-parser.add_argument('-b', '--buffersize', default=8, type=int)
+parser.add_argument('-b', '--buffersize', default=12, type=int)
 parser.add_argument('-c', '--chunk', default=3072, type=int)
 parser.add_argument('-ic', '--inputchannels', default=1, type=int)
 parser.add_argument('-oc', '--outputchannels', default=1, type=int)

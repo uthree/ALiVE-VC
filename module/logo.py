@@ -5,3 +5,4 @@ def print_logo():
     print("  / /    \ \/ /| |      | ")
     print(" / /__    \  / | |____  | ")
     print("/_____|    \/   \_____| | ")
+    print("")
