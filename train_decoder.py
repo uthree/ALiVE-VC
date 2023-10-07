@@ -101,7 +101,7 @@ for epoch in range(args.epoch):
         with torch.cuda.amp.autocast(enabled=args.fp16):
             f0 = pe.estimate(spec)
             content = ce(spec)
-            content = match_features(content, ce(target), alpha=random.random()).detach()
+            content = match_features(content, ce(target), alpha=0.1).detach()
             fake_wave = dec(content, f0)
             logits = D.logits(fake_wave)
             
