@@ -11,6 +11,7 @@ from module.pitch_estimator import PitchEstimator
 from module.logo import print_logo
 import json
 import pyaudio
+from tqdm import tqdm
 
 print_logo()
 
@@ -101,6 +102,8 @@ stream_loopback = audio.open(
         output=True) if args.loopback != -1 else None
 
 print("Converting Voice...")
+print("")
+bar = tqdm()
 while True:
     data = stream_input.read(chunk, exception_on_overflow=False)
     data = np.frombuffer(data, dtype=np.int16)
@@ -130,6 +133,9 @@ while True:
                 pitch = PE.estimate(spec) * args.f0_rate
                 content = match_features(content, tgt, k=args.k)
                 data = Dec(content, pitch)
+
+                bar.set_description(desc=f"Loudness: {loudness:.4f} dB, F0: {pitch.mean().item():.4f} Hz")
+
             else:
                 data = data * 0
             # gain
@@ -138,6 +144,7 @@ while True:
             data = torchaudio.functional.resample(data, 22050, args.internal_sampling_rate)
             data = torchaudio.functional.resample(data, args.internal_sampling_rate, 44100)
             data = data[0]
+
     data = data.cpu().numpy()
     data = (data) * 32768
     data = data
@@ -149,3 +156,4 @@ while True:
     stream_output.write(data)
     if stream_loopback is not None:
         stream_loopback.write(data)
+    bar.update(0)
