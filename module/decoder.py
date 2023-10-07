@@ -33,7 +33,7 @@ class Decoder(nn.Module):
         self.input_layer = nn.Conv1d(input_channels, internal_channels, 1)
         self.mid_layers = nn.ModuleList([
             AdaptiveConvNeXt1d(internal_channels, hidden_channels, f0_channels, scale=1/num_layers)
-            ])
+            for _ in range(num_layers)])
         self.last_norm = AdaptiveChannelNorm(internal_channels, f0_channels)
         self.output_layer = nn.Conv1d(internal_channels, n_fft+2, 1)
         self.n_fft = n_fft
