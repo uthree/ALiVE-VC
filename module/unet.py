@@ -97,7 +97,6 @@ class Decoder(nn.Module):
     def __init__(self,
             input_channels=512,
             upsample_initial_channels=256,
-            speaker_embedding_channels=128,
             deconv_strides=[8, 8, 4],
             deconv_kernel_sizes=[16, 16, 8],
             resblock_kernel_sizes=[3, 5, 7],
@@ -122,12 +121,13 @@ class Decoder(nn.Module):
         
         self.post = nn.Conv1d(c, 1, 7, 1, 3)
     
-    def forward(self, x):
+    def forward(self, x, skips):
         x = self.pre(x)
-        for up, MRF in zip(self.ups, self.MRFs):
+        for up, MRF, s in zip(self.ups, self.MRFs, skips):
+            x += s
             x = F.leaky_relu(x, LRELU_SLOPE)
             x = up(x)
-            x = MRF(x)
+            x = MRF(x) / self.num_kernels
         x = F.leaky_relu(x)
         x = self.post(x)
         return x
@@ -136,8 +136,7 @@ class Decoder(nn.Module):
 class Encoder(nn.Module):
     def __init__(self,
             output_channels=512,
-            downsample_initial_channels=16,
-            speaker_embedding_channels=128,
+            downsample_initial_channels=32,
             conv_strides=[4, 8, 8],
             conv_kernel_sizes=[8, 16, 16],
             resblock_kernel_sizes=[3, 5, 7],
@@ -163,14 +162,16 @@ class Encoder(nn.Module):
         self.post = nn.Conv1d(c, output_channels, 7, 1, 3)
     
     def forward(self, x):
+        skips = []
         x = self.pre(x)
         for down, MRF in zip(self.downs, self.MRFs):
             x = F.leaky_relu(x, LRELU_SLOPE)
             x = down(x)
-            x = MRF(x)
+            x = MRF(x) / self.num_kernels
+            skips.append(x)
         x = F.leaky_relu(x)
         x = self.post(x)
-        return x
+        return x, skips
 
 
 # U-Net
@@ -195,15 +196,15 @@ class UNet(nn.Module):
 
     def forward(self, x, condition, time):
         x = x.unsqueeze(1)
-        skip = x
-        x = self.encoder(x)
+        res = x
+        x, skips = self.encoder(x)
         time_emb = self.time_conv(self.time_enc(x, time))
         for l in self.mid_layers:
             x = x + time_emb
             x = l(x, condition)
         x = self.last_norm(x, condition)
-        x = self.decoder(x)
-        x = x + skip
+        x = self.decoder(x, reversed(skips))
+        x = x + res
         x = x.squeeze(1)
         return x
 
