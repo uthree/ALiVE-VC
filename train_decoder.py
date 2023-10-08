@@ -108,12 +108,13 @@ for epoch in range(args.epoch):
             loss_mel = (mel(wave_recon) - mel(wave)).abs().mean()
             loss_feat = D.feat_loss(wave_recon, wave)
             loss_kl = (-1 - sigma + torch.exp(sigma)).mean() + (mu ** 2).mean()
+            loss_con = (content - ce(wave_recon)).abs().mean()
 
             loss_adv = 0
             for logit in logits:
                 loss_adv += (logit ** 2).mean()
             
-            loss_g = loss_mel * 45 + loss_feat * 2 + loss_adv + loss_kl * 0.2
+            loss_g = loss_mel * 45 + loss_feat * 2 + loss_adv + loss_kl * 0.2 + loss_con
         scaler.scale(loss_g).backward()
         scaler.step(OptG)
 
@@ -133,7 +134,7 @@ for epoch in range(args.epoch):
 
         scaler.update()
         
-        tqdm.write(f"D: {loss_d.item():.4f}, Adv.: {loss_adv.item():.4f}, Mel.: {loss_mel.item():.4f}, Feat.: {loss_feat.item():.4f}, K.L.: {loss_kl.item():.4f}")
+        tqdm.write(f"D: {loss_d.item():.4f}, Adv.: {loss_adv.item():.4f}, Mel.: {loss_mel.item():.4f}, Feat.: {loss_feat.item():.4f}, Content.:{loss_con.item():.4f}, K.L.: {loss_kl.item():.4f}")
 
         N = wave.shape[0]
         bar.update(N)
