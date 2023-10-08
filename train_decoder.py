@@ -103,7 +103,7 @@ for epoch in range(args.epoch):
             content = ce(spec)
             content = match_features(content, ce(target), alpha=0.0).detach()
             fake_wave = dec(content, f0)
-            generated_wave = dec(match_features(content, content.roll(1, dims=0)), f0 * random.uniform(0.5, 2.0))
+            generated_wave = dec(match_features(content, content.roll(1, dims=0)), f0 * (0.5 + 1.5 * torch.rand(1, 1, device=device)))
             logits = D.logits(fake_wave) + D.logits(generated_wave)
             
             loss_mel = (mel(fake_wave) - mel(wave)).abs().mean()
