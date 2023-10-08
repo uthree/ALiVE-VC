@@ -30,6 +30,7 @@ parser.add_argument('-a', '--alpha', default=0.0, type=float)
 parser.add_argument('-k', default=4, type=int)
 parser.add_argument('-c', '--chunk', default=131072, type=int)
 parser.add_argument('-s', '--steps', default=30, type=int)
+parser.add_argument('--auto-volume', default=True, type=bool)
 parser.add_argument('-eta', default=0, type=float)
 parser.add_argument('-fp16', default=False, type=bool)
 
@@ -78,17 +79,21 @@ for i, path in enumerate(paths):
             if chunk.shape[1] < args.chunk:
                 chunk = torch.cat([chunk, torch.zeros(1, args.chunk - chunk.shape[1])], dim=1)
             chunk = chunk.to(device)
+            amp = torch.nn.functional.interpolate(chunk.abs().unsqueeze(1), args.chunk // 64, mode='linear')
             spec = spectrogram(chunk)
             f0 = PE.estimate(spec) * args.f0_rate
             feat = CE(spec)
             feat = match_features(feat, tgt, k=args.k, alpha=args.alpha)
             condition = Dec.condition_encoder(feat, f0)
+            amp_interpolated = torch.nn.functional.interpolate(amp, args.chunk, mode='linear').squeeze(1)
+            if args.auto_volume:
+                amp_interpolated = 1
             chunk = Dec.ddpm.sample(x_shape=(1, chunk.shape[1]),
                                     condition=condition,
                                     num_steps=args.steps,
                                     show_progress=True,
                                     eta=args.eta,
-                                    use_autocast=args.fp16)
+                                    use_autocast=args.fp16) * amp_interpolated
             result.append(chunk.to('cpu'))
         wf = torch.cat(result, dim=1)[:, :total_length]
         wf = torchaudio.functional.resample(wf, 16000, sr)
