@@ -2,22 +2,22 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import math
-from module.common import AdaptiveConvNeXt1d, AdaptiveChannelNorm, ChannelNorm
+from module.common import AdaptiveConvNeXt1d, AdaptiveChannelNorm
 from module.ddpm import DDPM
-
-
-LRELU_SLOPE = 0.1
 
 
 class ConditionEncoder(nn.Module):
     def __init__(self, channels=512, condition_channels=768):
         super().__init__()
+        self.pad = nn.ReflectionPad1d([1, 0])
         self.c1 = nn.Conv1d(condition_channels, channels*2, 1)
         self.c2 = nn.Conv1d(1, channels*2, 1)
         self.c3 = nn.Conv1d(channels*2, channels, 1)
         self.c2.weight.data.normal_(0, 0.3)
 
     def forward(self, c, f0):
+        c = self.pad(c)
+        f0 = self.pad(f0)
         c = self.c1(c) + torch.sin(self.c2(f0))
         c = F.gelu(c)
         c = self.c3(c)
@@ -45,146 +45,19 @@ class TimeEncoding1d(nn.Module):
         return ret
 
 
-def get_padding(kernel_size, dilation=1):
-    return int(((kernel_size -1)*dilation)/2)
-
-
-class ResBlock(nn.Module):
-    def __init__(self, channels, kernel_size=3, dilation=[1, 3, 5]):
-        super().__init__()
-        self.convs1 = nn.ModuleList([])
-        self.convs2 = nn.ModuleList([])
-
-        for d in dilation:
-            self.convs1.append(
-                    nn.Conv1d(channels, channels, kernel_size, 1, dilation=d,
-                        padding=get_padding(kernel_size, d)))
-            self.convs2.append(
-                    nn.Conv1d(channels, channels, kernel_size, 1, dilation=d,
-                        padding=get_padding(kernel_size, d)))
-
-    def forward(self, x):
-        for c1, c2 in zip(self.convs1, self.convs2):
-            xt = F.leaky_relu(x, LRELU_SLOPE)
-            xt = c1(xt)
-            xt = F.leaky_relu(xt, LRELU_SLOPE)
-            xt = c2(xt)
-            x = xt + x
-        return x
-
-
-class MRF(nn.Module):
-    def __init__(self,
-            channels,
-            kernel_sizes=[3, 7, 11],
-            dilation_rates=[[1, 3, 5], [1, 3, 5], [1, 3, 5]]):
-        super().__init__()
-        self.blocks = nn.ModuleList([])
-        for k, d in zip(kernel_sizes, dilation_rates):
-            self.blocks.append(
-                    ResBlock(channels, k, d))
-
-    def forward(self, x):
-        out = 0
-        for block in self.blocks:
-            out += block(x)
-        mu = out.mean(dim=2, keepdim=True)
-        sigma = out.std(dim=2, keepdim=True)
-        return out
-
-
-class Decoder(nn.Module):
-    def __init__(self,
-            input_channels=512,
-            upsample_initial_channels=256,
-            deconv_strides=[8, 8, 4],
-            deconv_kernel_sizes=[16, 16, 8],
-            resblock_kernel_sizes=[3, 5, 7],
-            resblock_dilation_rates=[[1, 2], [2, 6], [3, 12]]
-            ):
-        super().__init__()
-        self.num_kernels = len(resblock_kernel_sizes)
-        self.pre = nn.Conv1d(input_channels, upsample_initial_channels, 7, 1, 3)
-
-        self.ups = nn.ModuleList([])
-        for i, (s, k) in enumerate(zip(deconv_strides, deconv_kernel_sizes)):
-            self.ups.append(
-                    nn.ConvTranspose1d(
-                        upsample_initial_channels//(2**i),
-                        upsample_initial_channels//(2**(i+1)),
-                        k, s, (k-s)//2))
-
-        self.MRFs = nn.ModuleList([])
-        for i in range(len(self.ups)):
-            c = upsample_initial_channels//(2**(i+1))
-            self.MRFs.append(MRF(c, resblock_kernel_sizes, resblock_dilation_rates))
-        
-        self.post = nn.Conv1d(c, 1, 7, 1, 3)
-    
-    def forward(self, x, skips):
-        x = self.pre(x)
-        for up, MRF, s in zip(self.ups, self.MRFs, skips):
-            x += s
-            x = F.leaky_relu(x, LRELU_SLOPE)
-            x = up(x)
-            x = MRF(x) / self.num_kernels
-        x = F.leaky_relu(x)
-        x = self.post(x)
-        return x
-
-
-class Encoder(nn.Module):
-    def __init__(self,
-            output_channels=512,
-            downsample_initial_channels=32,
-            conv_strides=[4, 8, 8],
-            conv_kernel_sizes=[8, 16, 16],
-            resblock_kernel_sizes=[3, 5, 7],
-            resblock_dilation_rates=[[1, 2], [2, 6], [3, 12]]
-            ):
-        super().__init__()
-        self.num_kernels = len(resblock_kernel_sizes)
-        self.pre = nn.Conv1d(1, downsample_initial_channels, 7, 1, 3)
-
-        self.downs = nn.ModuleList([])
-        for i, (s, k) in enumerate(zip(conv_strides, conv_kernel_sizes)):
-            self.downs.append(
-                    nn.Conv1d(
-                        downsample_initial_channels * (2**i),
-                        downsample_initial_channels * (2**(i+1)),
-                        k, s, (k-s)//2))
-
-        self.MRFs = nn.ModuleList([])
-        for i in range(len(self.downs)):
-            c = downsample_initial_channels * (2**(i+1))
-            self.MRFs.append(MRF(c, resblock_kernel_sizes, resblock_dilation_rates))
-        
-        self.post = nn.Conv1d(c, output_channels, 7, 1, 3)
-    
-    def forward(self, x):
-        skips = []
-        x = self.pre(x)
-        for down, MRF in zip(self.downs, self.MRFs):
-            x = F.leaky_relu(x, LRELU_SLOPE)
-            x = down(x)
-            x = MRF(x) / self.num_kernels
-            skips.append(x)
-        x = F.leaky_relu(x)
-        x = self.post(x)
-        return x, skips
-
-
 # U-Net
 class UNet(nn.Module):
     def __init__(self,
                  internal_channels=512,
                  hubert_channels=768,
                  hidden_channels=1536,
+                 n_fft=1024,
+                 hop_length=256,
                  num_layers=16,
                  ):
         super().__init__()
-        self.encoder = Encoder(internal_channels)
-        self.decoder = Decoder(internal_channels)
+        self.input_layer = nn.Conv1d(n_fft + 2, internal_channels, 1)
+        self.output_layer = nn.Conv1d(internal_channels, n_fft + 2, 1)
         self.last_norm = AdaptiveChannelNorm(internal_channels, 512)
         self.time_conv = nn.Conv1d(internal_channels, internal_channels, 1)
         self.mid_layers = nn.ModuleList([
@@ -192,21 +65,51 @@ class UNet(nn.Module):
             for _ in range(num_layers)
             ])
         self.time_enc = TimeEncoding1d(return_encoding_only=True)
+        self.n_fft = n_fft
+        self.hop_length = hop_length
 
 
     def forward(self, x, condition, time):
-        x = x.unsqueeze(1)
         res = x
-        x, skips = self.encoder(x)
+        x = self.wav2spec(x)
+        x = self.input_layer(x)
         time_emb = self.time_conv(self.time_enc(x, time))
         for l in self.mid_layers:
             x = x + time_emb
             x = l(x, condition)
         x = self.last_norm(x, condition)
-        x = self.decoder(x, reversed(skips))
+        x = self.output_layer(x)
+        x = self.spec2wave(x)
         x = x + res
-        x = x.squeeze(1)
         return x
+
+    def wav2spec(self, x):
+        dtype = x.dtype
+        x = x.to(torch.float)
+        x = torch.stft(
+                x,
+                self.n_fft,
+                self.hop_length,
+                center=True,
+                return_complex=True)
+        x = torch.cat([x.real, x.imag], dim=1)
+        x = x.to(dtype)
+        return x
+
+    def spec2wave(self, x):
+        dtype = x.dtype
+        mag, phase = x.chunk(2, dim=1)
+        mag = torch.clamp_max(mag, 6.0)
+        x = torch.exp(mag) * (torch.cos(phase) + 1j * torch.sin(phase))
+        x = torch.istft(
+                x,
+                self.n_fft,
+                self.hop_length,
+                center=True)
+        x = x.to(dtype)
+        return x
+
+
 
 
 class DiffusionDecoder(nn.Module):

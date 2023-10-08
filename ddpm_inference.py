@@ -86,14 +86,15 @@ for i, path in enumerate(paths):
             feat = match_features(feat, tgt, k=args.k, alpha=args.alpha)
             condition = Dec.condition_encoder(feat, f0)
             amp_interpolated = torch.nn.functional.interpolate(amp, args.chunk, mode='linear').squeeze(1)
-            if args.auto_volume:
-                amp_interpolated = 1
             chunk = Dec.ddpm.sample(x_shape=(1, chunk.shape[1]),
                                     condition=condition,
                                     num_steps=args.steps,
                                     show_progress=True,
                                     eta=args.eta,
-                                    use_autocast=args.fp16) * amp_interpolated
+                                    use_autocast=args.fp16)
+            if args.auto_volume:
+                chunk = amp_interpolated * chunk
+ 
             result.append(chunk.to('cpu'))
         wf = torch.cat(result, dim=1)[:, :total_length]
         wf = torchaudio.functional.resample(wf, 16000, sr)
