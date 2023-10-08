@@ -96,9 +96,10 @@ def match_features(source, reference, k=4, alpha=0.0, norm=True, mode='IP'):
         elif mode == 'Dist':
             cos_sims = torch.cdist((source / source_norm), (reference / reference_norm))
         best = torch.topk(cos_sims, k, dim=2)
-        result = torch.stack([reference[n][best.indices[n]] for n in range(source.shape[0])], dim=0).mean(dim=2)
-        result = result.transpose(1, 2)
+    result = torch.stack([reference[n][best.indices[n]] for n in range(source.shape[0])], dim=0).mean(dim=2)
+    result = result.transpose(1, 2)
     return result * (1-alpha) + input_data * alpha
+
 
 
 def compute_f0(wf, sample_rate=16000, segment_size=256, f0_min=20, f0_max=1100):

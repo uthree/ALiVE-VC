@@ -12,6 +12,7 @@ from module.pitch_estimator import PitchEstimator
 from module.content_encoder import ContentEncoder
 from module.decoder import Decoder
 from module.common import match_features
+from module.voice_library import VoiceLibrary
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-i', '--inputs', default="./inputs/")
@@ -20,8 +21,9 @@ parser.add_argument('-dep', '--decoder-path', default="decoder.pt")
 parser.add_argument('-disp', '--discriminator-path', default="discriminator.pt")
 parser.add_argument('-cep', '--content-encoder-path', default="content_encoder.pt")
 parser.add_argument('-pep', '--pitch-estimator-path', default="pitch_estimator.pt")
+parser.add_argument('-lib', '--library-path', default="NONE")
 parser.add_argument('-f0', '--f0-rate', default=1.0, type=float)
-parser.add_argument('-t', '--target', default='target.wav')
+parser.add_argument('-t', '--target', default='empty.wav')
 parser.add_argument('-d', '--device', default='cpu')
 parser.add_argument('-g', '--gain', default=1.0, type=float)
 parser.add_argument('-a', '--alpha', default=0.0, type=float)
@@ -48,6 +50,11 @@ wf = wf.to(device)
 wf = torchaudio.functional.resample(wf, sr, 16000)
 wf = wf[:1]
 tgt = CE(spectrogram(wf)).detach()
+
+if args.library_path != "NONE":
+    lib = VoiceLibrary().to(device)
+    lib.load_state_dict(torch.load(args.library_path, map_location=device))
+    tgt = torch.cat([tgt, lib.tokens], dim=2)
 print(f"loaded {tgt.shape[2]} words.")
 
 
