@@ -74,7 +74,7 @@ dl = torch.utils.data.DataLoader(ds, batch_size=args.batch_size, shuffle=True)
 
 scaler = torch.cuda.amp.GradScaler(enabled=args.fp16)
 
-Opt = optim.AdamW(dec.parameters(), lr=args.learning_rate)
+Opt = optim.Adam(dec.parameters(), lr=args.learning_rate)
 
 for epoch in range(args.epoch):
     tqdm.write(f"Epoch #{epoch}")

@@ -31,6 +31,7 @@ parser.add_argument('-k', default=4, type=int)
 parser.add_argument('-c', '--chunk', default=131072, type=int)
 parser.add_argument('-s', '--steps', default=30, type=int)
 parser.add_argument('-eta', default=0, type=float)
+parser.add_argument('-fp16', default=False, type=bool)
 
 args = parser.parse_args()
 
@@ -86,7 +87,8 @@ for i, path in enumerate(paths):
                                     condition=condition,
                                     num_steps=args.steps,
                                     show_progress=True,
-                                    eta=args.eta)
+                                    eta=args.eta,
+                                    use_autocast=args.fp16)
             result.append(chunk.to('cpu'))
         wf = torch.cat(result, dim=1)[:, :total_length]
         wf = torchaudio.functional.resample(wf, 16000, sr)

@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import math
-from module.common import AdaptiveConvNeXt1d, AdaptiveChannelNorm
+from module.common import AdaptiveConvNeXt1d, AdaptiveChannelNorm, ChannelNorm
 from module.ddpm import DDPM
 
 
@@ -88,6 +88,8 @@ class MRF(nn.Module):
         out = 0
         for block in self.blocks:
             out += block(x)
+        mu = out.mean(dim=2, keepdim=True)
+        sigma = out.std(dim=2, keepdim=True)
         return out
 
 
@@ -176,8 +178,8 @@ class UNet(nn.Module):
     def __init__(self,
                  internal_channels=512,
                  hubert_channels=768,
-                 hidden_channels=2048,
-                 num_layers=8,
+                 hidden_channels=1536,
+                 num_layers=16,
                  ):
         super().__init__()
         self.encoder = Encoder(internal_channels)
@@ -190,15 +192,18 @@ class UNet(nn.Module):
             ])
         self.time_enc = TimeEncoding1d(return_encoding_only=True)
 
+
     def forward(self, x, condition, time):
         x = x.unsqueeze(1)
+        skip = x
         x = self.encoder(x)
         time_emb = self.time_conv(self.time_enc(x, time))
         for l in self.mid_layers:
-            x += time_emb
+            x = x + time_emb
             x = l(x, condition)
         x = self.last_norm(x, condition)
         x = self.decoder(x)
+        x = x + skip
         x = x.squeeze(1)
         return x
 
