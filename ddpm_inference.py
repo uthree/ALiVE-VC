@@ -30,6 +30,7 @@ parser.add_argument('-a', '--alpha', default=0.0, type=float)
 parser.add_argument('-k', default=4, type=int)
 parser.add_argument('-c', '--chunk', default=131072, type=int)
 parser.add_argument('-s', '--steps', default=30, type=int)
+parser.add_argument('-eta', default=0, type=float)
 
 args = parser.parse_args()
 
@@ -81,7 +82,11 @@ for i, path in enumerate(paths):
             feat = CE(spec)
             feat = match_features(feat, tgt, k=args.k, alpha=args.alpha)
             condition = Dec.condition_encoder(feat, f0)
-            chunk = Dec.ddpm.sample(x_shape=(1, chunk.shape[1]), condition=condition, num_steps=args.steps, show_progress=True)
+            chunk = Dec.ddpm.sample(x_shape=(1, chunk.shape[1]),
+                                    condition=condition,
+                                    num_steps=args.steps,
+                                    show_progress=True,
+                                    eta=args.eta)
             result.append(chunk.to('cpu'))
         wf = torch.cat(result, dim=1)[:, :total_length]
         wf = torchaudio.functional.resample(wf, 16000, sr)
