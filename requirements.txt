@@ -1,0 +1,9 @@
+torch
+torchaudio
+pyaudio
+numpy
+transformers
+pyworld
+matplotlib
+tqdm
+soundfile
