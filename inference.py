@@ -24,7 +24,7 @@ parser.add_argument('-f0', '--f0-rate', default=1.0, type=float)
 parser.add_argument('-t', '--target', default='target.wav')
 parser.add_argument('-d', '--device', default='cpu')
 parser.add_argument('-g', '--gain', default=1.0, type=float)
-parser.add_argument('-a', '--alpha', default=0.1, type=float)
+parser.add_argument('-a', '--alpha', default=0.0, type=float)
 parser.add_argument('-k', default=4, type=int)
 parser.add_argument('-c', '--chunk', default=131072, type=int)
 
