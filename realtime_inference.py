@@ -8,6 +8,7 @@ from module.common import match_features
 from module.decoder import Decoder
 from module.content_encoder import ContentEncoder
 from module.pitch_estimator import PitchEstimator
+from module.voice_library import VoiceLibrary
 from module.logo import print_logo
 import json
 import pyaudio
@@ -35,11 +36,13 @@ parser.add_argument('-ic', '--inputchannels', default=1, type=int)
 parser.add_argument('-oc', '--outputchannels', default=1, type=int)
 parser.add_argument('-lc', '--loopbackchannels', default=1, type=int)
 parser.add_argument('-f0', '--f0-rate', default=1, type=float)
-parser.add_argument('-t', '--target', default='target.wav')
+parser.add_argument('-t', '--target', default='empty.wav')
 parser.add_argument('-isr', '--internal-sampling-rate', default=16000, type=int)
 parser.add_argument('-k', default=4, type=int)
 parser.add_argument('-a', '--alpha', default=0.0, type=float)
 parser.add_argument('-fp16', default=False, type=bool)
+parser.add_argument('-lib', '--library-path', default="NONE")
+
 
 args = parser.parse_args()
 device_name = args.device
@@ -75,14 +78,12 @@ wf = wf.to(device)
 wf = torchaudio.functional.resample(wf, sr, 16000)[:1]
 tgt = CE(spectrogram(wf))[:, :, ::4].detach()
 
+if args.library_path != "NONE":
+    lib = VoiceLibrary().to(device)
+    lib.load_state_dict(torch.load(args.library_path, map_location=device))
+    tgt = torch.cat([tgt, lib.tokens], dim=2)
 print(f"loaded {tgt.shape[2]} words.")
 
-
-if args.compile:
-    print("Compiling Models...")
-    convertor = torch.compile(convertor)
-    vocoder = torch.compile(vocoder)
-    print("Complete!")
 
 stream_input = audio.open(
         format=pyaudio.paInt16,
