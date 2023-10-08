@@ -58,7 +58,7 @@ class Decoder(nn.Module):
         mag = mag.to(torch.float)
         phase = phase.to(torch.float)
         s = mag * (torch.cos(phase) + 1j * torch.sin(phase))
-        wave =  torch.istft(s, n_fft=self.n_fft, center=True, hop_length=256, onesided=True)
+        wave = torch.istft(s, n_fft=self.n_fft, center=True, hop_length=256, onesided=True)
         return wave, mu, sigma
 
     def decode(self, x, p):

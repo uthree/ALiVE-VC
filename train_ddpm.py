@@ -14,20 +14,18 @@ from module.dataset import WaveFileDirectory
 from module.spectrogram import spectrogram
 from module.content_encoder import ContentEncoder
 from module.pitch_estimator import PitchEstimator
-from module.decoder import Decoder
-from module.discriminator import Discriminator
+from module.unet import DiffusionDecoder
 from module.common import match_features
 
 parser = argparse.ArgumentParser(description="train Vocoder")
 
 parser.add_argument('dataset')
-parser.add_argument('-dep', '--decoder-path', default="decoder.pt")
-parser.add_argument('-disp', '--discriminator-path', default="discriminator.pt")
+parser.add_argument('-dep', '--decoder-path', default="ddpm.pt")
 parser.add_argument('-cep', '--content-encoder-path', default="content_encoder.pt")
 parser.add_argument('-pep', '--pitch-estimator-path', default="pitch_estimator.pt")
 parser.add_argument('-d', '--device', default='cpu')
 parser.add_argument('-e', '--epoch', default=100, type=int)
-parser.add_argument('-b', '--batch-size', default=4, type=int)
+parser.add_argument('-b', '--batch-size', default=64, type=int)
 parser.add_argument('-lr', '--learning-rate', default=1e-4, type=float)
 parser.add_argument('-len', '--length', default=65536, type=int)
 parser.add_argument('-m', '--max-data', default=-1, type=int)
@@ -43,10 +41,9 @@ def inference_mode(model):
 
 
 def load_or_init_models(device=torch.device('cpu')):
-    dis = Discriminator().to(device)
     ce = ContentEncoder().to(device)
     pe = PitchEstimator().to(device)
-    dec = Decoder().to(device)
+    dec = DiffusionDecoder().to(device)
     inference_mode(ce)
     inference_mode(pe)
     if os.path.exists(args.content_encoder_path):
@@ -55,20 +52,17 @@ def load_or_init_models(device=torch.device('cpu')):
         pe.load_state_dict(torch.load(args.pitch_estimator_path, map_location=device))
     if os.path.exists(args.decoder_path):
         dec.load_state_dict(torch.load(args.decoder_path, map_location=device))
-    if os.path.exists(args.discriminator_path):
-        dis.load_state_dict(torch.load(args.discriminator_path, map_location=device))
-    return ce, pe, dec, dis
+    return ce, pe, dec
 
 
-def save_models(dec, dis):
+def save_models(dec):
     print("Saving Models...")
     torch.save(dec.state_dict(), args.decoder_path)
-    torch.save(dis.state_dict(), args.discriminator_path)
     print("complete!")
 
 
 device = torch.device(args.device)
-ce, pe, dec, D = load_or_init_models(device)
+ce, pe, dec = load_or_init_models(device)
 
 ds = WaveFileDirectory(
         [args.dataset],
@@ -80,13 +74,7 @@ dl = torch.utils.data.DataLoader(ds, batch_size=args.batch_size, shuffle=True)
 
 scaler = torch.cuda.amp.GradScaler(enabled=args.fp16)
 
-OptG = optim.AdamW(dec.parameters(), lr=args.learning_rate)
-OptD = optim.AdamW(D.parameters(), lr=args.learning_rate)
-
-SchedulerG = optim.lr_scheduler.ExponentialLR(OptG, 0.99)
-SchedulerD = optim.lr_scheduler.ExponentialLR(OptD, 0.99)
-
-mel = torchaudio.transforms.MelSpectrogram(n_fft=1024, n_mels=80).to(device)
+Opt = optim.AdamW(dec.parameters(), lr=args.learning_rate)
 
 for epoch in range(args.epoch):
     tqdm.write(f"Epoch #{epoch}")
@@ -96,53 +84,26 @@ for epoch in range(args.epoch):
         spec = spectrogram(wave)
         
         # Train G.
-        OptG.zero_grad()
+        Opt.zero_grad()
         with torch.cuda.amp.autocast(enabled=args.fp16):
             with torch.no_grad():
                 f0 = pe.estimate(spec)
                 content = ce(spec)
-            wave_recon, mu, sigma = dec(content, f0)
-            wave_fake = dec.decode(match_features(content, content.roll(1, dims=0)), f0 * (0.5 + 1.5 * torch.rand(1, 1, device=device)))
-            logits = D.logits(wave_fake)
-            
-            loss_mel = (mel(wave_recon) - mel(wave)).abs().mean()
-            loss_feat = D.feat_loss(wave_recon, wave)
-            loss_kl = (-1 - sigma + torch.exp(sigma)).mean() + (mu ** 2).mean()
-            loss_con = (content - ce(spectrogram(wave_recon))).abs().mean()
+            condition = dec.condition_encoder(content, f0)
+            loss = dec.ddpm.calculate_loss(wave, condition)
 
-            loss_adv = 0
-            for logit in logits:
-                loss_adv += (logit ** 2).mean()
-            
-            loss_g = loss_mel * 45 + loss_feat * 2 + loss_con * 10 + loss_adv + loss_kl * 0.2
-        scaler.scale(loss_g).backward()
-        scaler.step(OptG)
-
-        # Train D.
-        OptD.zero_grad()
-        wave_fake = wave_fake.detach()
-        with torch.cuda.amp.autocast(enabled=args.fp16):
-            logits_fake = D.logits(wave_fake)
-            logits_real = D.logits(wave)
-            loss_d = 0
-            for logit in logits_real:
-                loss_d += (logit ** 2).mean()
-            for logit in logits_fake:
-                loss_d += ((logit - 1) ** 2).mean()
-        scaler.scale(loss_d).backward()
-        scaler.step(OptD)
+        scaler.scale(loss).backward()
+        scaler.step(Opt)
 
         scaler.update()
         
-        tqdm.write(f"D: {loss_d.item():.4f}, Adv.: {loss_adv.item():.4f}, Mel.: {loss_mel.item():.4f}, Feat.: {loss_feat.item():.4f}, Con.: {loss_con.item():.4f}, K.L.: {loss_kl.item():.4f}")
+        tqdm.write(f"Loss: {loss.item():.6f}")
 
         N = wave.shape[0]
         bar.update(N)
 
         if batch % 300 == 0:
-            save_models(dec, D)
-    SchedulerD.step()
-    SchedulerG.step()
+            save_models(dec)
 
 print("Training Complete!")
-save_models(dec, D)
+save_models(dec)
