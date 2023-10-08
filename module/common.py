@@ -80,7 +80,7 @@ class AdaptiveConvNeXt1d(nn.Module):
 # helper functions
 
 
-def match_features(source, reference, k=4, alpha=0.0, norm=True, mode='IP'):
+def match_features(source, reference, k=4, alpha=0.0):
     input_data = source
     with torch.no_grad():
         # source: [N, 768, Length], reference: [N, 768, Length]
@@ -88,13 +88,7 @@ def match_features(source, reference, k=4, alpha=0.0, norm=True, mode='IP'):
         reference = reference.transpose(1, 2)
         source_norm = torch.norm(source, dim=2, keepdim=True)
         reference_norm = torch.norm(reference, dim=2, keepdim=True)
-        if not norm:
-            reference_norm = 1
-            source_norm = 1
-        if mode == 'IP':
-            cos_sims = torch.bmm((source / source_norm), (reference / reference_norm).transpose(1, 2))
-        elif mode == 'Dist':
-            cos_sims = torch.cdist((source / source_norm), (reference / reference_norm))
+        cos_sims = torch.bmm((source / source_norm), (reference / reference_norm).transpose(1, 2))
         best = torch.topk(cos_sims, k, dim=2)
     result = torch.stack([reference[n][best.indices[n]] for n in range(source.shape[0])], dim=0).mean(dim=2)
     result = result.transpose(1, 2)
