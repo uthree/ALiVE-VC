@@ -101,7 +101,7 @@ for epoch in range(args.epoch):
             with torch.no_grad():
                 f0 = pe.estimate(spec)
                 content = ce(spec)
-            wave_recon, mu, sigma = dec(content, f0)
+            wave_recon, mu, sigma = dec(match_features(content, content), f0)
             wave_fake = dec.decode(match_features(content, content.roll(1, dims=0)), f0 * (0.5 + 1.5 * torch.rand(1, 1, device=device)))
             logits = D.logits(wave_fake)
             

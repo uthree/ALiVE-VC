@@ -89,7 +89,7 @@ for epoch in range(args.epoch):
             with torch.no_grad():
                 f0 = pe.estimate(spec)
                 content = ce(spec)
-            condition = dec.condition_encoder(content, f0)
+            condition = dec.condition_encoder(match_features(content, content), f0)
             loss = dec.ddpm.calculate_loss(wave, condition)
 
         scaler.scale(loss).backward()
