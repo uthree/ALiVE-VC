@@ -4,8 +4,9 @@ import torch.nn.functional as F
 import math
 from module.common import AdaptiveConvNeXt1d, AdaptiveChannelNorm
 from module.ddpm import DDPM
-LRELU_SLOPE = 0.1
 
+
+LRELU_SLOPE = 0.1
 
 
 class ConditionEncoder(nn.Module):
@@ -15,7 +16,6 @@ class ConditionEncoder(nn.Module):
         self.c2 = nn.Conv1d(1, channels*2, 1)
         self.c3 = nn.Conv1d(channels*2, channels, 1)
         self.c2.weight.data.normal_(0, 0.3)
-
 
     def forward(self, c, f0):
         c = self.c1(c) + torch.sin(self.c2(f0))
@@ -45,12 +45,6 @@ class TimeEncoding1d(nn.Module):
         return ret
 
 
-def init_weights(m, mean=0.0, std=0.01):
-    classname = m.__class__.__name__
-    if classname.find("Conv") != -1:
-        m.weight.data.normal_(mean, std)
-
-
 def get_padding(kernel_size, dilation=1):
     return int(((kernel_size -1)*dilation)/2)
 
@@ -68,9 +62,6 @@ class ResBlock(nn.Module):
             self.convs2.append(
                     nn.Conv1d(channels, channels, kernel_size, 1, dilation=d,
                         padding=get_padding(kernel_size, d)))
-
-        self.convs1.apply(init_weights)
-        self.convs2.apply(init_weights)
 
     def forward(self, x):
         for c1, c2 in zip(self.convs1, self.convs2):
@@ -98,7 +89,6 @@ class MRF(nn.Module):
         for block in self.blocks:
             out += block(x)
         return out
-
 
 
 class Decoder(nn.Module):
@@ -129,17 +119,15 @@ class Decoder(nn.Module):
             self.MRFs.append(MRF(c, resblock_kernel_sizes, resblock_dilation_rates))
         
         self.post = nn.Conv1d(c, 1, 7, 1, 3)
-        self.ups.apply(init_weights)
     
     def forward(self, x):
         x = self.pre(x)
         for up, MRF in zip(self.ups, self.MRFs):
             x = F.leaky_relu(x, LRELU_SLOPE)
             x = up(x)
-            x = MRF(x) / self.num_kernels
+            x = MRF(x)
         x = F.leaky_relu(x)
         x = self.post(x)
-        x = x.squeeze(1)
         return x
 
 
@@ -171,17 +159,15 @@ class Encoder(nn.Module):
             self.MRFs.append(MRF(c, resblock_kernel_sizes, resblock_dilation_rates))
         
         self.post = nn.Conv1d(c, output_channels, 7, 1, 3)
-        self.downs.apply(init_weights)
     
     def forward(self, x):
         x = self.pre(x)
         for down, MRF in zip(self.downs, self.MRFs):
             x = F.leaky_relu(x, LRELU_SLOPE)
             x = down(x)
-            x = MRF(x) / self.num_kernels
+            x = MRF(x)
         x = F.leaky_relu(x)
         x = self.post(x)
-        x = x.squeeze(1)
         return x
 
 
