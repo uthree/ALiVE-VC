@@ -92,7 +92,7 @@ for epoch in range(args.epoch):
     tqdm.write(f"Epoch #{epoch}")
     bar = tqdm(total=len(ds))
     for batch, wave_data in enumerate(dl):
-        wave_data = wave_data.to(device)
+        wave_data = wave_data.to(device) * torch.rand(wave_data.shape[0], 1)
         wave, _ = wave_data.chunk(2, dim=1)
         spec, target = spectrogram(wave_data).chunk(2, dim=2)
         
@@ -103,7 +103,8 @@ for epoch in range(args.epoch):
             content = ce(spec)
             content = match_features(content, ce(target), alpha=0.0).detach()
             fake_wave = dec(content, f0)
-            logits = D.logits(fake_wave)
+            generated_wave = dec(content, f0 * random.uniform(0.5, 2.0))
+            logits = D.logits(fake_wave) + D.logits(generated_wave)
             
             loss_mel = (mel(fake_wave) - mel(wave)).abs().mean()
             loss_feat = D.feat_loss(fake_wave, wave)
