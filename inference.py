@@ -84,4 +84,4 @@ for i, path in enumerate(paths):
         wf = torchaudio.functional.gain(wf, args.gain)
     wf = wf.cpu().detach()
     wf = wf / wf.max()
-    torchaudio.save(filepath=os.path.join("./outputs/", f"{os.path.splitext(os.path.basename(path))[0]}.wav"), src=wf, sample_rate=sr)
+    torchaudio.save(os.path.join("./outputs/", f"{os.path.splitext(os.path.basename(path))[0]}.wav"), src=wf, sample_rate=sr)
