@@ -108,7 +108,9 @@ for epoch in range(args.epoch):
         with torch.cuda.amp.autocast(enabled=args.fp16):
             f0 = pe.estimate(spec)
             content = ce(spec)
-            content = match_features(content, vl.tokens, alpha=0.0).detach()
+            tkns = vl.tokens
+            tkns = tkns.expand(spec.shape[0], tkns.shape[1], tkns.shape[2])
+            content = match_features(content, tkns, alpha=0.0).detach()
             fake_wave = dec(content, f0)
             logits = D.logits(fake_wave)
             
