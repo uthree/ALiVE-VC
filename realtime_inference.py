@@ -39,7 +39,6 @@ parser.add_argument('-t', '--target', default='target.wav')
 parser.add_argument('-isr', '--internal-sampling-rate', default=16000, type=int)
 parser.add_argument('-k', default=4, type=int)
 parser.add_argument('-a', '--alpha', default=0.0, type=float)
-parser.add_argument('-compile', default=False, type=bool)
 parser.add_argument('-fp16', default=False, type=bool)
 
 args = parser.parse_args()
