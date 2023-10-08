@@ -77,7 +77,7 @@ for i, path in enumerate(paths):
             f0 = PE.estimate(spec) * args.f0_rate
             feat = CE(spec)
             feat = match_features(feat, tgt, k=args.k, alpha=args.alpha)
-            chunk = Dec(feat, f0)
+            chunk = Dec.decode(feat, f0)
             result.append(chunk.to('cpu'))
         wf = torch.cat(result, dim=1)[:, :total_length]
         wf = torchaudio.functional.resample(wf, 16000, sr)

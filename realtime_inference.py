@@ -136,7 +136,7 @@ while True:
                 content = CE(spec)
                 pitch = PE.estimate(spec) * args.f0_rate
                 content = match_features(content, tgt, k=args.k, alpha=args.alpha)
-                data = Dec(content, pitch)
+                data = Dec.decode(content, pitch)
 
                 bar.set_description(desc=f"Loudness: {loudness+80:.4f} dB, F0: {pitch.mean().item() / args.f0_rate:.4f} Hz")
 

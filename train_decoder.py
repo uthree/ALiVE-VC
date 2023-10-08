@@ -27,7 +27,7 @@ parser.add_argument('-cep', '--content-encoder-path', default="content_encoder.p
 parser.add_argument('-pep', '--pitch-estimator-path', default="pitch_estimator.pt")
 parser.add_argument('-d', '--device', default='cpu')
 parser.add_argument('-e', '--epoch', default=100, type=int)
-parser.add_argument('-b', '--batch-size', default=3, type=int)
+parser.add_argument('-b', '--batch-size', default=4, type=int)
 parser.add_argument('-lr', '--learning-rate', default=1e-4, type=float)
 parser.add_argument('-len', '--length', default=98304, type=int)
 parser.add_argument('-m', '--max-data', default=-1, type=int)
@@ -92,35 +92,37 @@ for epoch in range(args.epoch):
     tqdm.write(f"Epoch #{epoch}")
     bar = tqdm(total=len(ds))
     for batch, wave_data in enumerate(dl):
-        wave_data = wave_data.to(device) * torch.rand(wave_data.shape[0], 1, device=device)
+        wave_data = wave_data.to(device) * torch.rand(wave_data.shape[0], 1, device=device) * 2.0
         wave, _ = wave_data.chunk(2, dim=1)
         spec, target = spectrogram(wave_data).chunk(2, dim=2)
         
         # Train G.
         OptG.zero_grad()
         with torch.cuda.amp.autocast(enabled=args.fp16):
-            f0 = pe.estimate(spec)
-            content = ce(spec)
-            content = match_features(content, ce(target), alpha=0.0).detach()
-            fake_wave = dec(content, f0)
-            generated_wave = dec(match_features(content, content.roll(1, dims=0)), f0 * (0.5 + 1.5 * torch.rand(1, 1, device=device)))
-            logits = D.logits(fake_wave) + D.logits(generated_wave)
+            with torch.no_grad():
+                f0 = pe.estimate(spec)
+                content = ce(spec)
+            wave_recon, mu, sigma = dec(content, f0)
+            wave_fake = dec.decode(match_features(content, content.roll(1, dims=0)), f0 * (0.5 + 1.5 * torch.rand(1, 1, device=device)))
+            logits = D.logits(wave_fake)
             
-            loss_mel = (mel(fake_wave) - mel(wave)).abs().mean()
-            loss_feat = D.feat_loss(fake_wave, wave)
+            loss_mel = (mel(wave_recon) - mel(wave)).abs().mean()
+            loss_feat = D.feat_loss(wave_recon, wave)
+            loss_kl = (-1 - sigma + torch.exp(sigma)).mean() + (mu ** 2).mean()
+
             loss_adv = 0
             for logit in logits:
                 loss_adv += (logit ** 2).mean()
             
-            loss_g = loss_mel * 45 + loss_feat * 2 + loss_adv
+            loss_g = loss_mel * 45 + loss_feat * 2 + loss_adv + loss_kl
         scaler.scale(loss_g).backward()
         scaler.step(OptG)
 
         # Train D.
         OptD.zero_grad()
-        fake_wave = fake_wave.detach()
+        wave_fake = wave_fake.detach()
         with torch.cuda.amp.autocast(enabled=args.fp16):
-            logits_fake = D.logits(fake_wave)
+            logits_fake = D.logits(wave_fake)
             logits_real = D.logits(wave)
             loss_d = 0
             for logit in logits_real:
@@ -132,7 +134,7 @@ for epoch in range(args.epoch):
 
         scaler.update()
         
-        tqdm.write(f"D: {loss_d.item():.4f}, Adv.: {loss_adv.item():.4f}, Mel.: {loss_mel.item():.4f}, Feat.: {loss_feat.item():.4f}")
+        tqdm.write(f"D: {loss_d.item():.4f}, Adv.: {loss_adv.item():.4f}, Mel.: {loss_mel.item():.4f}, Feat.: {loss_feat.item():.4f}, K.L.: {loss_kl.item():.4f}")
 
         N = wave.shape[0]
         bar.update(N)

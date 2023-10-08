@@ -110,8 +110,8 @@ for epoch in range(args.epoch):
             content = ce(spec)
             tkns = vl.tokens
             tkns = tkns.expand(spec.shape[0], tkns.shape[1], tkns.shape[2])
-            content = match_features(content, tkns, alpha=0.0).detach()
-            fake_wave = dec(content, f0)
+            content = match_features(content, tkns, alpha=0.0)
+            fake_wave = dec.decode(content, f0)
             logits = D.logits(fake_wave)
             
             loss_mel = (mel(fake_wave) - mel(wave)).abs().mean()

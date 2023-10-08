@@ -26,10 +26,14 @@ class Decoder(nn.Module):
                  hidden_channels=1536,
                  f0_channels=512,
                  n_fft=1024,
-                 num_layers=8):
+                 num_layers=10):
         super().__init__()
         self.pad = nn.ReflectionPad1d([1, 0])
         self.f0_encoder = F0Encoder(f0_channels)
+        self.to_gaussian = nn.Sequential(
+                nn.Conv1d(input_channels, input_channels, 1),
+                nn.GELU(),
+                nn.Conv1d(input_channels, input_channels * 2, 1))
         self.input_layer = nn.Conv1d(input_channels, internal_channels, 1)
         self.mid_layers = nn.ModuleList([
             AdaptiveConvNeXt1d(internal_channels, hidden_channels, f0_channels, scale=1/num_layers)
@@ -40,7 +44,9 @@ class Decoder(nn.Module):
 
     def forward(self, x, p):
         x = self.pad(x)
-        x = self.input_layer(x)
+        mu, sigma = self.to_gaussian(x).chunk(2, dim=1)
+        z = mu + torch.randn_like(sigma) * torch.exp(torch.clamp(sigma, max=10))
+        x = self.input_layer(z)
         p = self.pad(p)
         p = self.f0_encoder(p)
         for l in self.mid_layers:
@@ -52,6 +58,11 @@ class Decoder(nn.Module):
         mag = mag.to(torch.float)
         phase = phase.to(torch.float)
         s = mag * (torch.cos(phase) + 1j * torch.sin(phase))
-        return torch.istft(s, n_fft=self.n_fft, center=True, hop_length=256, onesided=True)
+        wave =  torch.istft(s, n_fft=self.n_fft, center=True, hop_length=256, onesided=True)
+        return wave, mu, sigma
+
+    def decode(self, x, p):
+        w, m, s = self.forward(x, p)
+        return w
 
 
