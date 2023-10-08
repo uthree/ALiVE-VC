@@ -48,6 +48,7 @@ print("encoding target...")
 wf, sr = torchaudio.load(args.target)
 wf = wf.to(device)
 wf = torchaudio.functional.resample(wf, sr, 16000)
+wf = wf / wf.abs().max()
 wf = wf[:1]
 tgt = CE(spectrogram(wf)).detach()
 
@@ -63,6 +64,7 @@ for i, path in enumerate(paths):
     wf, sr = torchaudio.load(path)
     wf = wf.to('cpu')
     wf = torchaudio.functional.resample(wf, sr, 16000)
+    wf = wf / wf.abs().max()
     wf = wf[:1]
     total_length = wf.shape[1]
     chunks = torch.split(wf, args.chunk, dim=1)
