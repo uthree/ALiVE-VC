@@ -1,6 +1,9 @@
 # ZVC
 軽量なベクトル検索ベースのAIボイスチェンジャ
 
+## アーキテクチャ
+![Arch.](https://github.com/uthree/zvc/blob/main/documents/architecture.png)
+
 ## 必要なもの
 - Python 3.10 or later
 - PyTorch 2.0 or later
