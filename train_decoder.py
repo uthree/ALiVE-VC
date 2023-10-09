@@ -114,7 +114,7 @@ for epoch in range(args.epoch):
             for logit in logits:
                 loss_adv += (logit ** 2).mean()
             
-            loss_g = loss_mel * 45 + loss_feat * 2 + loss_con * 10 + loss_adv + loss_kl
+            loss_g = loss_mel * 45 + loss_feat * 2 + loss_con * 2 + loss_adv + loss_kl
         scaler.scale(loss_g).backward()
         scaler.step(OptG)
 
