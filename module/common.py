@@ -77,9 +77,28 @@ class AdaptiveConvNeXt1d(nn.Module):
         return x + res
 
 
+class UNetLayer(nn.Module):
+    def __init__(self, channels=512, hidden_channels=1536, condition_emb=128, kernel_size=7, scale=1):
+        super().__init__()
+        self.dw_conv = nn.Conv1d(channels, channels, kernel_size, padding='same', groups=channels)
+        self.norm = AdaptiveChannelNorm(channels, condition_emb)
+        self.pw_conv1 = nn.Conv1d(channels, hidden_channels, 1)
+        self.pw_conv2 = nn.Conv1d(hidden_channels, channels, 1)
+        self.scale = nn.Parameter(torch.ones(1, channels, 1) * scale)
+
+    def forward(self, x, p):
+        res = x
+        x = self.dw_conv(x)
+        x = self.norm(x, p)
+        x = self.pw_conv1(x)
+        x = F.gelu(x)
+        x = self.pw_conv2(x)
+        x = x * self.scale
+        return x + res
+
+
+
 # helper functions
-
-
 def match_features(source, reference, k=4, alpha=0.0):
     input_data = source
     with torch.no_grad():

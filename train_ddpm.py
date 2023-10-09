@@ -79,23 +79,26 @@ Opt = optim.Adam(dec.parameters(), lr=args.learning_rate)
 for epoch in range(args.epoch):
     tqdm.write(f"Epoch #{epoch}")
     bar = tqdm(total=len(ds))
+    losses = 0
     for batch, wave in enumerate(dl):
-        wave = wave.to(device) * (torch.rand(wave.shape[0], 1, device=device) + 0.25)
+        wave = wave.to(device) * (torch.rand(wave.shape[0], 1, device=device) * 0.75 + 0.25)
         spec = spectrogram(wave)
         
         # Train G.
-        Opt.zero_grad()
         with torch.cuda.amp.autocast(enabled=args.fp16):
             with torch.no_grad():
                 f0 = pe.estimate(spec)
                 content = ce(spec)
             condition = dec.condition_encoder(match_features(content, content), f0)
             loss = dec.ddpm.calculate_loss(wave, condition)
-
-        scaler.scale(loss).backward()
-        scaler.step(Opt)
-
-        scaler.update()
+            if loss.isnan().any() == False:
+                losses += loss.item()
+        if loss.isnan().any() == False:
+            scaler.scale(loss).backward()
+        if batch % args.gradient_accumulation == 0 and loss.isnan().any() == False:
+            scaler.step(Opt)
+            Opt.zero_grad()
+            scaler.update()
         
         tqdm.write(f"Loss: {loss.item():.6f}")
 
@@ -104,6 +107,7 @@ for epoch in range(args.epoch):
 
         if batch % 300 == 0:
             save_models(dec)
+    tqdm.write(f"Loss Mean: {losses / len(dl)}")
 
 print("Training Complete!")
 save_models(dec)

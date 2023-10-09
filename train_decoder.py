@@ -103,7 +103,7 @@ for epoch in range(args.epoch):
                 content = ce(spec)
             wave_recon, mu, sigma = dec(match_features(content, content), f0)
             wave_fake = dec.decode(match_features(content, content.roll(1, dims=0)), f0 * (0.5 + 1.5 * torch.rand(1, 1, device=device)))
-            logits = D.logits(wave_fake)
+            logits = D.logits(wave_fake) + D.logits(wave_recon)
             
             loss_mel = (mel(wave_recon) - mel(wave)).abs().mean()
             loss_feat = D.feat_loss(wave_recon, wave)
@@ -114,7 +114,7 @@ for epoch in range(args.epoch):
             for logit in logits:
                 loss_adv += (logit ** 2).mean()
             
-            loss_g = loss_mel * 45 + loss_feat * 2 + loss_con * 10 + loss_adv + loss_kl * 0.2
+            loss_g = loss_mel * 45 + loss_feat * 2 + loss_con * 10 + loss_adv + loss_kl
         scaler.scale(loss_g).backward()
         scaler.step(OptG)
 

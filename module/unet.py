@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import math
-from module.common import AdaptiveConvNeXt1d, AdaptiveChannelNorm
+from module.common import UNetLayer, AdaptiveChannelNorm
 from module.ddpm import DDPM
 
 
@@ -57,11 +57,18 @@ class UNet(nn.Module):
                  ):
         super().__init__()
         self.input_layer = nn.Conv1d(n_fft + 2, internal_channels, 1)
-        self.output_layer = nn.Conv1d(internal_channels, n_fft + 2, 1)
         self.last_norm = AdaptiveChannelNorm(internal_channels, 512)
-        self.time_conv = nn.Conv1d(internal_channels, internal_channels, 1)
+        self.output_layer = nn.Conv1d(internal_channels, n_fft + 2, 1)
+        self.time_scales = nn.ModuleList([
+            nn.Conv1d(internal_channels, internal_channels, 1)
+            for _ in range(num_layers)
+            ])
+        self.time_shifts = nn.ModuleList([
+            nn.Conv1d(internal_channels, internal_channels, 1)
+            for _ in range(num_layers)
+            ])
         self.mid_layers = nn.ModuleList([
-            AdaptiveConvNeXt1d(internal_channels, hidden_channels, 512, scale=1/num_layers)
+            UNetLayer(internal_channels, hidden_channels, 512, scale=1/num_layers)
             for _ in range(num_layers)
             ])
         self.time_enc = TimeEncoding1d(return_encoding_only=True)
@@ -73,10 +80,12 @@ class UNet(nn.Module):
         res = x
         x = self.wav2spec(x)
         x = self.input_layer(x)
-        time_emb = self.time_conv(self.time_enc(x, time))
-        for l in self.mid_layers:
-            x = x + time_emb
+        time_emb = self.time_enc(x, time)
+
+        for l, tsc, tsh in zip(self.mid_layers, self.time_scales, self.time_shifts):
+            x = x + tsh(time_emb) * tsc(time_emb)
             x = l(x, condition)
+
         x = self.last_norm(x, condition)
         x = self.output_layer(x)
         x = self.spec2wave(x)
@@ -94,23 +103,23 @@ class UNet(nn.Module):
                 return_complex=True)
         x = torch.cat([x.real, x.imag], dim=1)
         x = x.to(dtype)
+        x = x / self.n_fft
         return x
 
     def spec2wave(self, x):
+        x = x * self.n_fft
         dtype = x.dtype
-        mag, phase = x.chunk(2, dim=1)
-        mag = torch.clamp_max(mag, 6.0)
-        x = torch.exp(mag) * (torch.cos(phase) + 1j * torch.sin(phase))
+        x = x.to(torch.float)
+        real, imag = torch.chunk(x, 2, dim=1)
+        x = torch.complex(real, imag)
         x = torch.istft(
                 x,
                 self.n_fft,
                 self.hop_length,
-                center=True)
+                center=True,
+                onesided=True)
         x = x.to(dtype)
         return x
-
-
-
 
 class DiffusionDecoder(nn.Module):
     def __init__(self):
