@@ -111,7 +111,7 @@ def match_features(source, reference, k=4, alpha=0.0):
         best = torch.topk(cos_sims, k, dim=2)
     result = torch.stack([reference[n][best.indices[n]] for n in range(source.shape[0])], dim=0).mean(dim=2)
     result = result.transpose(1, 2)
-    return result * (1-alpha) + input_data * alpha + torch.randn_like(result)
+    return result * (1-alpha) + input_data * alpha
 
 
 

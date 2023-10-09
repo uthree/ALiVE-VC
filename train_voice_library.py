@@ -29,8 +29,8 @@ parser.add_argument('-pep', '--pitch-estimator-path', default="pitch_estimator.p
 parser.add_argument('-lib', '--library-path', default="voice_library.pt")
 parser.add_argument('-fd', '--freeze-decoder', default=False, type=bool)
 parser.add_argument('-d', '--device', default='cpu')
-parser.add_argument('-e', '--epoch', default=100, type=int)
-parser.add_argument('-b', '--batch-size', default=3, type=int)
+parser.add_argument('-e', '--epoch', default=10000, type=int)
+parser.add_argument('-b', '--batch-size', default=4, type=int)
 parser.add_argument('-lr', '--learning-rate', default=1e-4, type=float)
 parser.add_argument('-len', '--length', default=32768, type=int)
 parser.add_argument('-m', '--max-data', default=-1, type=int)
@@ -90,9 +90,9 @@ dl = torch.utils.data.DataLoader(ds, batch_size=args.batch_size, shuffle=True)
 
 scaler = torch.cuda.amp.GradScaler(enabled=args.fp16)
 
-OptG = optim.AdamW(dec.parameters(), lr=args.learning_rate, betas=(0.8, 0.99))
-OptD = optim.AdamW(D.parameters(), lr=args.learning_rate, betas=(0.8, 0.99))
-OptL = optim.AdamW(vl.parameters(), lr=args.learning_rate, betas=(0.8, 0.99))
+OptG = optim.AdamW(dec.parameters(), lr=args.learning_rate, betas=(0.9, 0.99))
+OptD = optim.AdamW(D.parameters(), lr=args.learning_rate, betas=(0.9, 0.99))
+OptL = optim.AdamW(vl.parameters(), lr=args.learning_rate, betas=(0.9, 0.99))
 
 mel = torchaudio.transforms.MelSpectrogram(n_fft=1024, n_mels=80).to(device)
 
