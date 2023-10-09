@@ -92,7 +92,7 @@ scaler = torch.cuda.amp.GradScaler(enabled=args.fp16)
 
 OptG = optim.AdamW(dec.parameters(), lr=args.learning_rate, betas=(0.9, 0.99))
 OptD = optim.AdamW(D.parameters(), lr=args.learning_rate, betas=(0.9, 0.99))
-OptL = optim.AdamW(vl.parameters(), lr=args.learning_rate*4, betas=(0.9, 0.99))
+OptL = optim.AdamW(vl.parameters(), lr=args.learning_rate*2, betas=(0.9, 0.99))
 
 mel = torchaudio.transforms.MelSpectrogram(n_fft=1024, n_mels=80).to(device)
 
