@@ -170,3 +170,4 @@ cython_debug/
 *.swo
 !empty.wav
 *.zip
+!documents/*
