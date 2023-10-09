@@ -7,6 +7,9 @@ from torch.nn.utils import weight_norm
 
 LRELU_SLOPE = 0.1
 
+def get_padding(kernel_size, dilation=1):
+    return int((kernel_size*dilation - dilation)/2)
+
 
 class PeriodicDiscriminator(nn.Module):
     def __init__(self,
@@ -15,7 +18,7 @@ class PeriodicDiscriminator(nn.Module):
                  kernel_size=5,
                  stride=3,
                  num_stages=4,
-                 dropout_rate=0.0,
+                 dropout_rate=0.2,
                  groups = [],
                  max_channels=256
                  ):
@@ -29,11 +32,13 @@ class PeriodicDiscriminator(nn.Module):
             if i == (num_stages - 1):
                 self.layers.append(
                         weight_norm(
-                            nn.Conv2d(c, c, (kernel_size, 1), (stride, 1), groups=groups[i])))
+                            nn.Conv2d(c, c, (kernel_size, 1), (stride, 1), groups=groups[i],
+                                      padding=get_padding(kernel_size, 1))))
             else:
                 self.layers.append(
                         weight_norm(
-                            nn.Conv2d(c, c_next, (kernel_size, 1), (stride, 1), groups=groups[i])))
+                            nn.Conv2d(c, c_next, (kernel_size, 1), (stride, 1), groups=groups[i],
+                                      padding=get_padding(kernel_size, 1))))
                 self.layers.append(
                         nn.Dropout(dropout_rate))
                 self.layers.append(
@@ -117,7 +122,7 @@ class MultiPeriodicDiscriminator(nn.Module):
 
 
 class ResolutionDiscriminator(nn.Module):
-    def __init__(self, n_fft, channels=64):
+    def __init__(self, n_fft, channels=64, dropout_rate=0.2):
         super().__init__()
         self.n_fft = n_fft
         self.convs = nn.ModuleList(
@@ -130,6 +135,7 @@ class ResolutionDiscriminator(nn.Module):
             ]
         )
         self.conv_post = weight_norm(nn.Conv2d(channels, 1, (3, 3), padding=(1, 1)))
+        self.dropout_rate = dropout_rate
 
     def forward(self, x):
         x = self.spectrogram(x)
@@ -137,6 +143,7 @@ class ResolutionDiscriminator(nn.Module):
         for c in self.convs:
             x = c(x)
             x = F.leaky_relu(x, LRELU_SLOPE)
+            x = F.dropout(x, self.dropout_rate)
         x = self.conv_post(x)
         x = F.leaky_relu(x, LRELU_SLOPE)
         return x

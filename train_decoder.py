@@ -80,11 +80,8 @@ dl = torch.utils.data.DataLoader(ds, batch_size=args.batch_size, shuffle=True)
 
 scaler = torch.cuda.amp.GradScaler(enabled=args.fp16)
 
-OptG = optim.AdamW(dec.parameters(), lr=args.learning_rate)
-OptD = optim.AdamW(D.parameters(), lr=args.learning_rate)
-
-SchedulerG = optim.lr_scheduler.ExponentialLR(OptG, 0.99)
-SchedulerD = optim.lr_scheduler.ExponentialLR(OptD, 0.99)
+OptG = optim.AdamW(dec.parameters(), lr=args.learning_rate, betas=(0.8, 0.99))
+OptD = optim.AdamW(D.parameters(), lr=args.learning_rate, betas=(0.8, 0.99))
 
 mel = torchaudio.transforms.MelSpectrogram(n_fft=1024, n_mels=80).to(device)
 
@@ -114,7 +111,7 @@ for epoch in range(args.epoch):
             for logit in logits:
                 loss_adv += (logit ** 2).mean()
             
-            loss_g = loss_mel * 45 + loss_feat * 2 + loss_con * 2 + loss_adv + loss_kl
+            loss_g = loss_mel * 45 + loss_feat * 2 + loss_con * 5 + loss_adv + loss_kl
         scaler.scale(loss_g).backward()
         scaler.step(OptG)
 
@@ -141,8 +138,6 @@ for epoch in range(args.epoch):
 
         if batch % 300 == 0:
             save_models(dec, D)
-    SchedulerD.step()
-    SchedulerG.step()
 
 print("Training Complete!")
 save_models(dec, D)

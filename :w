@@ -36,7 +36,6 @@ parser.add_argument('-ic', '--inputchannels', default=1, type=int)
 parser.add_argument('-oc', '--outputchannels', default=1, type=int)
 parser.add_argument('-lc', '--loopbackchannels', default=1, type=int)
 parser.add_argument('-f0', '--f0-rate', default=1, type=float)
-parser.add_argument('-t', '--target', default='empty.wav')
 parser.add_argument('-k', default=4, type=int)
 parser.add_argument('-a', '--alpha', default=0.0, type=float)
 parser.add_argument('-fp16', default=False, type=bool)
@@ -71,12 +70,8 @@ CE.load_state_dict(torch.load(args.content_encoder_path, map_location=device))
 Dec.load_state_dict(torch.load(args.decoder_path, map_location=device))
 
 
-print("encoding target...")
-wf, sr = torchaudio.load(args.target)
-wf = wf.to(device)
-wf = torchaudio.functional.resample(wf, sr, 16000)[:1]
-tgt = CE(spectrogram(wf))[:, :, ::4].detach()
-print(f"loaded {tgt.shape[2]} words.")
+VL = VoiceLibrary().to(device)
+VL.load_state_dict(torch.load(args.library_path, map_location=device))
 
 
 stream_input = audio.open(
@@ -130,7 +125,7 @@ while True:
                 # convert voice
                 content = CE(spec)
                 pitch = PE.estimate(spec) * args.f0_rate
-                content = match_features(content, tgt, k=args.k, alpha=args.alpha)
+                content = VL.match(content, alpha=args.alpha)
                 data = Dec.decode(content, pitch)
 
                 bar.set_description(desc=f"Loudness: {loudness+80:.4f} dB, F0: {pitch.mean().item() / args.f0_rate:.4f} Hz")
