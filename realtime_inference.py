@@ -36,11 +36,11 @@ parser.add_argument('-ic', '--inputchannels', default=1, type=int)
 parser.add_argument('-oc', '--outputchannels', default=1, type=int)
 parser.add_argument('-lc', '--loopbackchannels', default=1, type=int)
 parser.add_argument('-f0', '--f0-rate', default=1, type=float)
-parser.add_argument('-t', '--target', default='empty.wav')
+parser.add_argument('-t', '--target', default='NONE')
 parser.add_argument('-k', default=4, type=int)
 parser.add_argument('-a', '--alpha', default=0.0, type=float)
 parser.add_argument('-fp16', default=False, type=bool)
-parser.add_argument('-lib', '--library-path', default="NONE")
+parser.add_argument('-lib', '--voice-library-path', default="NONE")
 
 
 args = parser.parse_args()
@@ -70,13 +70,25 @@ PE.load_state_dict(torch.load(args.pitch_estimator_path, map_location=device))
 CE.load_state_dict(torch.load(args.content_encoder_path, map_location=device))
 Dec.load_state_dict(torch.load(args.decoder_path, map_location=device))
 
+tgt = torch.zeros(1, 768, 0).to(device)
 
-print("encoding target...")
-wf, sr = torchaudio.load(args.target)
-wf = wf.to(device)
-wf = torchaudio.functional.resample(wf, sr, 16000)[:1]
-tgt = CE(spectrogram(wf))[:, :, ::4].detach()
-print(f"loaded {tgt.shape[2]} words.")
+if args.target != "NONE":
+    print("loading target...")
+    wf, sr = torchaudio.load(args.target)
+    wf = wf.to(device)
+    wf = torchaudio.functional.resample(wf, sr, 16000)
+    wf = wf / wf.abs().max()
+    wf = wf[:1]
+    tgt = CE(spectrogram(wf)).detach()
+
+if args.voice_library_path != "NONE":
+    print(f"loading voice library {args.voice_library_path}")
+    VL = VoiceLibrary().to(device)
+    VL.load_state_dict(torch.load(args.voice_library_path, map_location=device))
+    tgt = torch.cat([tgt, VL.tokens], dim=2)
+
+print(f"Loaded {tgt.shape[2]} words.")
+
 
 
 stream_input = audio.open(
