@@ -95,10 +95,13 @@ dl = torch.utils.data.DataLoader(ds, batch_size=args.batch_size, shuffle=True)
 
 scaler = torch.cuda.amp.GradScaler(enabled=args.fp16)
 
-OptG = optim.AdamW(dec.parameters(), lr=args.learning_rate, betas=(0.8, 0.99))
-OptD = optim.AdamW(D.parameters(), lr=args.learning_rate, betas=(0.8, 0.99))
+OptG = optim.AdamW(dec.parameters(), lr=args.learning_rate, betas=(0.9, 0.99))
+OptD = optim.AdamW(D.parameters(), lr=args.learning_rate, betas=(0.9, 0.99))
 
 mel = torchaudio.transforms.MelSpectrogram(n_fft=1024, n_mels=80).to(device)
+
+def log_mel(x):
+    return torch.log(mel(x) + 1e-6)
 
 for epoch in range(args.epoch):
     tqdm.write(f"Epoch #{epoch}")
@@ -118,7 +121,7 @@ for epoch in range(args.epoch):
                                    cut_center(f0) * (0.5 + 1.5 * torch.rand(1, 1, device=device)))
             logits = D.logits(wave_fake) + D.logits(wave_recon)
             
-            loss_mel = (mel(wave_recon) - mel(cut_center_wav(wave))).abs().mean()
+            loss_mel = (log_mel(wave_recon) - log_mel(cut_center_wav(wave))).abs().mean()
             loss_feat = D.feat_loss(wave_recon, cut_center_wav(wave))
             loss_kl = (-1 - sigma + torch.exp(sigma)).mean() + (mu ** 2).mean()
             loss_con = (cut_center(content) - ce(spectrogram(wave_recon))).abs().mean()

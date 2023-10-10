@@ -160,6 +160,7 @@ class ResolutionDiscriminator(nn.Module):
         
     def spectrogram(self, x):
         x = torch.stft(x, self.n_fft, self.n_fft // 4, return_complex=True, center=True, window=None).abs()
+        x = torch.log(x + 1e-6)
         return x
 
 
