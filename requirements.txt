@@ -6,4 +6,3 @@ transformers
 pyworld
 matplotlib
 tqdm
-soundfile
