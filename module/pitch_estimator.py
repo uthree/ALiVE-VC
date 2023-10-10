@@ -26,8 +26,9 @@ class PitchEstimator(nn.Module):
         x = self.output_layer(x)
         return x
 
-    def estimate(self, x):
+    def estimate(self, x, downsample_factor=3):
         dtype = x.dtype
         with torch.no_grad():
             x = self.forward(x)
-            return torch.argmax(x, dim=1, keepdim=True).to(x.dtype)
+            f0 = torch.argmax(x, dim=1, keepdim=True).to(x.dtype)
+            return f0

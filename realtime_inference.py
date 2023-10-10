@@ -24,21 +24,21 @@ parser.add_argument('-d', '--device', default='cpu', choices=['cpu', 'cuda', 'mp
 parser.add_argument('-i', '--input', default=0, type=int)
 parser.add_argument('-o', '--output', default=0, type=int)
 parser.add_argument('-l', '--loopback', default=-1, type=int)
-parser.add_argument('-ig', '--input-gain', default=1.0, type=float)
-parser.add_argument('-g', '--gain', default=1.0, type=float)
-parser.add_argument('-thr', '--threshold', default=20.0, type=float)
+parser.add_argument('-g', '--gain', default=0.0, type=float)
+parser.add_argument('-ig', '--input-gain', default=0.0, type=float)
+parser.add_argument('-thr', '--threshold', default=5.0, type=float)
 parser.add_argument('-dep', '--decoder-path', default="decoder.pt")
 parser.add_argument('-cep', '--content-encoder-path', default="content_encoder.pt")
 parser.add_argument('-pep', '--pitch-estimator-path', default="pitch_estimator.pt")
 parser.add_argument('-b', '--buffersize', default=6, type=int)
-parser.add_argument('-c', '--chunk', default=3072, type=int)
+parser.add_argument('-c', '--chunk', default=4096, type=int)
 parser.add_argument('-ic', '--inputchannels', default=1, type=int)
 parser.add_argument('-oc', '--outputchannels', default=1, type=int)
 parser.add_argument('-lc', '--loopbackchannels', default=1, type=int)
 parser.add_argument('-f0', '--f0-rate', default=1, type=float)
 parser.add_argument('-t', '--target', default='NONE')
 parser.add_argument('-k', default=4, type=int)
-parser.add_argument('-a', '--alpha', default=0.0, type=float)
+parser.add_argument('-a', '--alpha', default=0.1, type=float)
 parser.add_argument('-fp16', default=False, type=bool)
 parser.add_argument('-lib', '--voice-library-path', default="NONE")
 
@@ -79,7 +79,7 @@ if args.target != "NONE":
     wf = torchaudio.functional.resample(wf, sr, 16000)
     wf = wf / wf.abs().max()
     wf = wf[:1]
-    tgt = CE(spectrogram(wf)).detach()
+    tgt = CE(spectrogram(wf)).detach()[:, :, ::4]
 
 if args.voice_library_path != "NONE":
     print(f"loading voice library {args.voice_library_path}")
@@ -129,11 +129,11 @@ while True:
     data = data.astype(np.float32) / 32768 # convert -1 to 1
     data = torch.from_numpy(data).to(device)
     data = torch.unsqueeze(data, 0)
-    data = data * args.input_gain
     with torch.no_grad():
         with torch.cuda.amp.autocast(enabled=args.fp16):
             # Downsample
             data = torchaudio.functional.resample(data, 44100, 16000)
+            data = torchaudio.functional.gain(data, args.input_gain)
             # Calculate loudness
             loudness = torchaudio.functional.loudness(data, 16000)
             if loudness.item() > args.threshold:
@@ -142,6 +142,7 @@ while True:
                 # convert voice
                 content = CE(spec)
                 pitch = PE.estimate(spec) * args.f0_rate
+
                 content = match_features(content, tgt, k=args.k, alpha=args.alpha)
                 data = Dec.decode(content, pitch)
 
