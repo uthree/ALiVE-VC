@@ -18,9 +18,9 @@ class PeriodicDiscriminator(nn.Module):
                  kernel_size=5,
                  stride=3,
                  num_stages=4,
-                 dropout_rate=0.2,
+                 dropout_rate=0.0,
                  groups = [],
-                 max_channels=256
+                 max_channels=1024
                  ):
         super().__init__()
         self.input_layer = weight_norm(
@@ -89,7 +89,7 @@ class PeriodicDiscriminator(nn.Module):
 class MultiPeriodicDiscriminator(nn.Module):
     def __init__(self,
                  periods=[2, 3, 5, 7, 11],
-                 groups=[1, 2, 4, 4, 4],
+                 groups=[1, 2, 4, 8, 16],
                  channels=64,
                  kernel_size=5,
                  stride=3,
@@ -122,7 +122,7 @@ class MultiPeriodicDiscriminator(nn.Module):
 
 
 class ResolutionDiscriminator(nn.Module):
-    def __init__(self, n_fft, channels=64, dropout_rate=0.2):
+    def __init__(self, n_fft, channels=64, dropout_rate=0.0):
         super().__init__()
         self.n_fft = n_fft
         self.convs = nn.ModuleList(

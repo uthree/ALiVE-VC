@@ -8,6 +8,8 @@ from module.content_encoder import ContentEncoder
 from module.spectrogram import spectrogram
 from module.dataset import WaveFileDirectory
 
+from tqdm import tqdm
+
 parser = argparse.ArgumentParser(description="Generate voice library from wave files")
 
 parser.add_argument("dataset")
@@ -19,7 +21,7 @@ args = parser.parse_args()
 ds = WaveFileDirectory(
         [args.dataset],
         length=65536,
-        max_files=1
+        max_files=-1
         )
 
 dl = torch.utils.data.DataLoader(ds, batch_size=1, shuffle=True)
@@ -29,8 +31,11 @@ CE = ContentEncoder()
 CE.load_state_dict(torch.load(args.content_encoder_path, map_location='cpu'))
 VL = VoiceLibrary()
 
-for i, wave in enumerate(dl):
+print("Generating Library...")
+for i, wave in tqdm(enumerate(dl), total=len(dl)):
     n = random.randint(0, 127)
     t = CE(spectrogram(wave))[0, :, n]
     VL.tokens.data[:, :, n] = t
+print("Writing file...")
 torch.save(VL.state_dict(), args.voice_library_path)
+print("Complete!")
