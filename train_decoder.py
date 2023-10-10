@@ -103,6 +103,9 @@ SchedulerD = torch.optim.lr_scheduler.CosineAnnealingLR(OptD, 5000)
 
 mel = torchaudio.transforms.MelSpectrogram(n_fft=1024, n_mels=80).to(device)
 
+def log_mel(x):
+    return torch.log(mel(x) + 1e-6)
+
 for epoch in range(args.epoch):
     tqdm.write(f"Epoch #{epoch}")
     bar = tqdm(total=len(ds))
@@ -121,7 +124,7 @@ for epoch in range(args.epoch):
                                    cut_center(f0) * (0.5 + 1.5 * torch.rand(1, 1, device=device)))
             logits = D.logits(wave_fake) + D.logits(wave_recon)
             
-            loss_mel = (mel(wave_recon) - mel(cut_center_wav(wave))).abs().mean()
+            loss_mel = (log_mel(wave_recon) - log_mel(cut_center_wav(wave))).abs().mean()
             loss_feat = D.feat_loss(wave_recon, cut_center_wav(wave))
             loss_kl = (-1 - sigma + torch.exp(sigma)).mean() + (mu ** 2).mean()
             loss_con = (cut_center(content) - ce(spectrogram(wave_recon))).abs().mean()
