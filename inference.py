@@ -22,6 +22,8 @@ parser.add_argument('-disp', '--discriminator-path', default="discriminator.pt")
 parser.add_argument('-cep', '--content-encoder-path', default="content_encoder.pt")
 parser.add_argument('-pep', '--pitch-estimator-path', default="pitch_estimator.pt")
 parser.add_argument('-f0', '--f0-rate', default=1.0, type=float)
+parser.add_argument('-p', '--pitch', default=0, type=float)
+parser.add_argument('-int', '--intonation', default=1.0, type=float)
 parser.add_argument('-t', '--target', default='NONE')
 parser.add_argument('-d', '--device', default='cpu')
 parser.add_argument('-g', '--gain', default=1.0, type=float)
@@ -80,10 +82,21 @@ for i, path in enumerate(paths):
                 chunk = torch.cat([chunk, torch.zeros(1, args.chunk - chunk.shape[1])], dim=1)
             chunk = chunk.to(device)
             spec = spectrogram(chunk)
-            f0 = PE.estimate(spec) * args.f0_rate
+            f0 = PE.estimate(spec)
+
+            # Pitch Shift and Intonation Multiply
+            pitch = 12 * torch.log2(f0 / 440) - 9 # Convert f0 to pitch
+            
+            mean_pitch = pitch.masked_select(torch.logical_not(torch.logical_or(pitch.isinf(), pitch.isnan()))).mean()
+            intonation = (pitch - mean_pitch)
+            pitch = mean_pitch + intonation * args.intonation + args.pitch # Intonation Multiply
+
+            f0 = 440 * 2 ** ((pitch + 9) / 12) # Convert pitch to f0
+            f0[torch.logical_or(f0.isnan(), f0.isinf())] = 0
+
             feat = CE(spec)
             feat = match_features(feat, tgt, k=args.k, alpha=args.alpha)
-            chunk = Dec.decode(feat, f0)
+            chunk = Dec.decode(feat, f0  * args.f0_rate)
             result.append(chunk.to('cpu'))
         wf = torch.cat(result, dim=1)[:, :total_length]
         wf = torchaudio.functional.resample(wf, 16000, sr)

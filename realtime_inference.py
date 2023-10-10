@@ -36,6 +36,8 @@ parser.add_argument('-ic', '--inputchannels', default=1, type=int)
 parser.add_argument('-oc', '--outputchannels', default=1, type=int)
 parser.add_argument('-lc', '--loopbackchannels', default=1, type=int)
 parser.add_argument('-f0', '--f0-rate', default=1, type=float)
+parser.add_argument('-int', '--intonation', default=1, type=float)
+parser.add_argument('-p', '--pitch', default=0, type=float)
 parser.add_argument('-t', '--target', default='NONE')
 parser.add_argument('-k', default=4, type=int)
 parser.add_argument('-a', '--alpha', default=0.1, type=float)
@@ -141,12 +143,22 @@ while True:
                 spec = spectrogram(data)
                 # convert voice
                 content = CE(spec)
-                pitch = PE.estimate(spec) * args.f0_rate
+                f0 = PE.estimate(spec) * args.f0_rate
+
+                # Pitch Shift and Intonation Multiply
+                pitch = 12 * torch.log2(f0 / 440) - 9 # Convert f0 to pitch
+            
+                mean_pitch = pitch.masked_select(torch.logical_not(torch.logical_or(pitch.isinf(), pitch.isnan()))).mean()
+                intonation = (pitch - mean_pitch)
+                pitch = mean_pitch + intonation * args.intonation + args.pitch # Intonation Multiply
+
+                f0 = 440 * 2 ** ((pitch + 9) / 12) # Convert pitch to f0
+                f0[torch.logical_or(f0.isnan(), f0.isinf())] = 0
 
                 content = match_features(content, tgt, k=args.k, alpha=args.alpha)
-                data = Dec.decode(content, pitch)
+                data = Dec.decode(content, f0)
 
-                bar.set_description(desc=f"Loudness: {loudness+80:.4f} dB, F0: {pitch.mean().item() / args.f0_rate:.4f} Hz")
+                bar.set_description(desc=f"Loudness: {loudness+80:.4f} dB, F0: {f0.mean().item() / args.f0_rate:.4f} Hz")
 
             else:
                 data = data * 0
