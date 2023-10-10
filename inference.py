@@ -75,8 +75,8 @@ for i, path in enumerate(paths):
     wf = wf.mean(dim=0, keepdim=True)
     total_length = wf.shape[1]
     
-    if total_length < args.chunk:
-        wf = torch.cat([wf, torch.zeros(1, args.chunk-total_length)], dim=1)
+    if total_length < args.chunk * 3:
+        wf = torch.cat([wf, torch.zeros(1, (args.chunk * 3) - total_length)], dim=1)
 
     wf = wf.unsqueeze(1).unsqueeze(1)
     wf = F.pad(wf, (args.chunk, args.chunk, 0, 0))
