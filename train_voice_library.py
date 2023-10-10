@@ -123,7 +123,8 @@ for epoch in range(args.epoch):
             
             loss_g = loss_mel * 45 + loss_feat * 2 + loss_adv + loss_con * 10 + loss_kl
         scaler.scale(loss_g).backward()
-        scaler.step(OptG)
+        if not args.freeze_decoder:
+            scaler.step(OptG)
         scaler.step(OptL)
 
         # Train D.
