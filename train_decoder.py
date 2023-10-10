@@ -26,10 +26,10 @@ parser.add_argument('-disp', '--discriminator-path', default="discriminator.pt")
 parser.add_argument('-cep', '--content-encoder-path', default="content_encoder.pt")
 parser.add_argument('-pep', '--pitch-estimator-path', default="pitch_estimator.pt")
 parser.add_argument('-d', '--device', default='cpu')
-parser.add_argument('-e', '--epoch', default=100, type=int)
-parser.add_argument('-b', '--batch-size', default=6, type=int)
-parser.add_argument('-lr', '--learning-rate', default=1e-4, type=float)
-parser.add_argument('-len', '--length', default=65536, type=int)
+parser.add_argument('-e', '--epoch', default=1000, type=int)
+parser.add_argument('-b', '--batch-size', default=16, type=int)
+parser.add_argument('-lr', '--learning-rate', default=2e-4, type=float)
+parser.add_argument('-len', '--length', default=16384, type=int)
 parser.add_argument('-m', '--max-data', default=-1, type=int)
 parser.add_argument('-fp16', default=False, type=bool)
 parser.add_argument('-gacc', '--gradient-accumulation', default=1, type=int)
@@ -98,10 +98,10 @@ scaler = torch.cuda.amp.GradScaler(enabled=args.fp16)
 OptG = optim.AdamW(dec.parameters(), lr=args.learning_rate, betas=(0.9, 0.99))
 OptD = optim.AdamW(D.parameters(), lr=args.learning_rate, betas=(0.9, 0.99))
 
-mel = torchaudio.transforms.MelSpectrogram(n_fft=1024, n_mels=80).to(device)
+SchedulerG = torch.optim.lr_scheduler.CosineAnnealingLR(OptG, 5000)
+SchedulerD = torch.optim.lr_scheduler.CosineAnnealingLR(OptD, 5000)
 
-def log_mel(x):
-    return torch.log(mel(x) + 1e-6)
+mel = torchaudio.transforms.MelSpectrogram(n_fft=1024, n_mels=80).to(device)
 
 for epoch in range(args.epoch):
     tqdm.write(f"Epoch #{epoch}")
@@ -121,14 +121,14 @@ for epoch in range(args.epoch):
                                    cut_center(f0) * (0.5 + 1.5 * torch.rand(1, 1, device=device)))
             logits = D.logits(wave_fake) + D.logits(wave_recon)
             
-            loss_mel = (log_mel(wave_recon) - log_mel(cut_center_wav(wave))).abs().mean()
+            loss_mel = (mel(wave_recon) - mel(cut_center_wav(wave))).abs().mean()
             loss_feat = D.feat_loss(wave_recon, cut_center_wav(wave))
             loss_kl = (-1 - sigma + torch.exp(sigma)).mean() + (mu ** 2).mean()
             loss_con = (cut_center(content) - ce(spectrogram(wave_recon))).abs().mean()
 
             loss_adv = 0
             for logit in logits:
-                loss_adv += (logit ** 2).mean()
+                loss_adv += F.relu(1 - logit).mean() / len(logits)
             
             loss_g = loss_mel * args.mel + loss_feat * args.feature_matching + loss_con * args.content + loss_adv + loss_kl
         scaler.scale(loss_g).backward()
@@ -142,13 +142,15 @@ for epoch in range(args.epoch):
             logits_real = D.logits(cut_center_wav(wave))
             loss_d = 0
             for logit in logits_real:
-                loss_d += (logit ** 2).mean()
+                loss_d += F.relu(1 - logit).mean() / len(logits)
             for logit in logits_fake:
-                loss_d += ((logit - 1) ** 2).mean()
+                loss_d += F.relu(1 + logit).mean() / len(logits)
         scaler.scale(loss_d).backward()
         scaler.step(OptD)
 
         scaler.update()
+        SchedulerD.step()
+        SchedulerG.step()
         
         tqdm.write(f"D: {loss_d.item():.4f}, Adv.: {loss_adv.item():.4f}, Mel.: {loss_mel.item():.4f}, Feat.: {loss_feat.item():.4f}, Con.: {loss_con.item():.4f}, K.L.: {loss_kl.item():.4f}")
 

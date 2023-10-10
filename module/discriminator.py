@@ -24,7 +24,7 @@ class PeriodicDiscriminator(nn.Module):
                  ):
         super().__init__()
         self.input_layer = weight_norm(
-                nn.Conv2d(1, channels, (kernel_size, 1), (stride, 1), 0))
+                nn.Conv2d(1, channels, (kernel_size, 1), (stride, 1), padding=get_padding(kernel_size, 1)))
         self.layers = nn.Sequential()
         for i in range(num_stages):
             c = min(channels * (2 ** i), max_channels)
@@ -45,11 +45,10 @@ class PeriodicDiscriminator(nn.Module):
                         nn.LeakyReLU(LRELU_SLOPE))
         c = min(channels * (2 ** (num_stages-1)), max_channels)
         self.final_conv = weight_norm(
-                nn.Conv2d(c, c, (5, 1), 1, 0)
-                )
+                nn.Conv2d(c, c, (5, 1), 1, padding=get_padding(5, 1)))
         self.final_relu = nn.LeakyReLU(LRELU_SLOPE)
         self.output_layer = weight_norm(
-                nn.Conv2d(c, 1, (3, 1), 1, 0))
+                nn.Conv2d(c, 1, (3, 1), 1, padding=get_padding(3, 1)))
         self.period = period
 
     def forward(self, x, logit=True):
@@ -160,7 +159,6 @@ class ResolutionDiscriminator(nn.Module):
         
     def spectrogram(self, x):
         x = torch.stft(x, self.n_fft, self.n_fft // 4, return_complex=True, center=True, window=None).abs()
-        x = torch.log(x + 1e-6)
         return x
 
 
@@ -200,5 +198,5 @@ class Discriminator(nn.Module):
         fake_feat = self.MPD.feat(fake) + self.MRD.feat(fake)
         loss = 0
         for r, f in zip(real_feat, fake_feat):
-            loss = loss + F.l1_loss(f, r)
+            loss = loss + F.l1_loss(f, r) / len(real_feat)
         return loss
