@@ -31,7 +31,8 @@
 ## inference.py
 | Option name | Alias | Description |
 |---| --- | ---|
-|`--target`|`-t`| target speaker's speaking file |
+|`--target`|`-t`| target speaker's speaking audio file (supports `wav`, `mp3`, `ogg`) |
+|`--audio-library-path`| `-lib` | path to audio library |
 |`-device`| `-d` | set inferencing device. you can use `cpu`, `cuda` or `mps` |
 || `-fp16 True`| use 16-bit floatation point (deprecated)|
 |`-f0-rate` | `-f0`| rate of F0 pitch |

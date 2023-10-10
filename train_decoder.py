@@ -27,7 +27,7 @@ parser.add_argument('-cep', '--content-encoder-path', default="content_encoder.p
 parser.add_argument('-pep', '--pitch-estimator-path', default="pitch_estimator.pt")
 parser.add_argument('-d', '--device', default='cpu')
 parser.add_argument('-e', '--epoch', default=100, type=int)
-parser.add_argument('-b', '--batch-size', default=4, type=int)
+parser.add_argument('-b', '--batch-size', default=2, type=int)
 parser.add_argument('-lr', '--learning-rate', default=1e-4, type=float)
 parser.add_argument('-len', '--length', default=65536, type=int)
 parser.add_argument('-m', '--max-data', default=-1, type=int)
@@ -66,6 +66,18 @@ def save_models(dec, dis):
     torch.save(dis.state_dict(), args.discriminator_path)
     print("complete!")
 
+def cut_center(x):
+    length = x.shape[2]
+    center = length // 2
+    size = length // 4
+    return x[:, :, center-size:center+size]
+
+def cut_center_wav(x):
+    length = x.shape[1]
+    center = length // 2
+    size = length // 4
+    return x[:, center-size:center+size]
+
 
 device = torch.device(args.device)
 ce, pe, dec, D = load_or_init_models(device)
@@ -98,14 +110,15 @@ for epoch in range(args.epoch):
             with torch.no_grad():
                 f0 = pe.estimate(spec)
                 content = ce(spec)
-            wave_recon, mu, sigma = dec(match_features(content, content), f0)
-            wave_fake = dec.decode(match_features(content, content.roll(1, dims=0)), f0 * (0.5 + 1.5 * torch.rand(1, 1, device=device)))
+            wave_recon, mu, sigma = dec(match_features(cut_center(content), content), cut_center(f0))
+            wave_fake = dec.decode(match_features(cut_center(content), content.roll(1, dims=0)),
+                                   cut_center(f0) * (0.5 + 1.5 * torch.rand(1, 1, device=device)))
             logits = D.logits(wave_fake) + D.logits(wave_recon)
             
-            loss_mel = (mel(wave_recon) - mel(wave)).abs().mean()
-            loss_feat = D.feat_loss(wave_recon, wave)
+            loss_mel = (mel(wave_recon) - mel(cut_center_wav(wave))).abs().mean()
+            loss_feat = D.feat_loss(wave_recon, cut_center_wav(wave))
             loss_kl = (-1 - sigma + torch.exp(sigma)).mean() + (mu ** 2).mean()
-            loss_con = (content - ce(spectrogram(wave_recon))).abs().mean()
+            loss_con = (cut_center(content) - ce(spectrogram(wave_recon))).abs().mean()
 
             loss_adv = 0
             for logit in logits:
