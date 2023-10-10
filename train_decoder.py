@@ -33,6 +33,9 @@ parser.add_argument('-len', '--length', default=65536, type=int)
 parser.add_argument('-m', '--max-data', default=-1, type=int)
 parser.add_argument('-fp16', default=False, type=bool)
 parser.add_argument('-gacc', '--gradient-accumulation', default=1, type=int)
+parser.add_argument('--feature-matching', default=2, type=float)
+parser.add_argument('--mel', default=45, type=float)
+parser.add_argument('--content', default=10, type=float)
 
 args = parser.parse_args()
 
@@ -124,7 +127,7 @@ for epoch in range(args.epoch):
             for logit in logits:
                 loss_adv += (logit ** 2).mean()
             
-            loss_g = loss_mel * 45 + loss_feat * 2 + loss_con * 5 + loss_adv + loss_kl
+            loss_g = loss_mel * args.mel + loss_feat * args.feature_matching + loss_con * args.content + loss_adv + loss_kl
         scaler.scale(loss_g).backward()
         scaler.step(OptG)
 

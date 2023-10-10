@@ -111,7 +111,8 @@ for epoch in range(args.epoch):
             content_in = ce(spec)
             content_out = vl.match(content_in)
             fake_wave, mean, logvar = dec(content_out, f0)
-            logits = D.logits(fake_wave)
+            generated_wave = dec.decode(content_out, f0 * (0.5 + random.random() * 1.5))
+            logits = D.logits(generated_wave)
             
             loss_mel = (mel(fake_wave) - mel(wave)).abs().mean()
             loss_feat = D.feat_loss(fake_wave, wave)
@@ -130,8 +131,9 @@ for epoch in range(args.epoch):
         # Train D.
         OptD.zero_grad()
         fake_wave = fake_wave.detach()
+        generated_wave = generated_wave.detach()
         with torch.cuda.amp.autocast(enabled=args.fp16):
-            logits_fake = D.logits(fake_wave)
+            logits_fake = D.logits(generated_wave)
             logits_real = D.logits(wave)
             loss_d = 0
             for logit in logits_real:
