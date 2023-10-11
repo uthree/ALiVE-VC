@@ -16,7 +16,7 @@ from module.content_encoder import ContentEncoder
 from module.pitch_estimator import PitchEstimator
 from module.decoder import Decoder
 from module.discriminator import Discriminator
-from module.common import match_features
+from module.common import match_features, compute_f0
 
 parser = argparse.ArgumentParser(description="train Vocoder")
 
@@ -36,6 +36,7 @@ parser.add_argument('-gacc', '--gradient-accumulation', default=1, type=int)
 parser.add_argument('--feature-matching', default=2, type=float)
 parser.add_argument('--mel', default=45, type=float)
 parser.add_argument('--content', default=1, type=float)
+parser.add_argument('-wpe', '--world-pitch-estimation', default=False, type=bool)
 
 args = parser.parse_args()
 
@@ -119,11 +120,14 @@ for epoch in range(args.epoch):
         OptG.zero_grad()
         with torch.cuda.amp.autocast(enabled=args.fp16):
             with torch.no_grad():
-                f0 = pe.estimate(spec)
+                if args.world_pitch_estimation:
+                    f0 = compute_f0(wave)
+                else:
+                    f0 = pe.estimate(spec)
                 content = ce(spec)
             wave_recon, mu, sigma = dec(match_features(cut_center(content), content), cut_center(f0))
             wave_fake = dec.decode(match_features(cut_center(content), content.roll(1, dims=0)),
-                                   cut_center(f0) * (0.75 + 0.5 * torch.rand(1, 1, device=device)))
+                                   cut_center(f0) * (0.75 + 1.5 * torch.rand(1, 1, device=device)))
             logits = D.logits(wave_fake) + D.logits(wave_recon)
             
             loss_mel = (log_mel(wave_recon) - log_mel(cut_center_wav(wave))).abs().mean()

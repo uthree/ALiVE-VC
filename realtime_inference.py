@@ -4,7 +4,7 @@ import numpy as np
 import torch
 import torchaudio
 from module.spectrogram import spectrogram
-from module.common import match_features
+from module.common import match_features, compute_f0
 from module.decoder import Decoder
 from module.content_encoder import ContentEncoder
 from module.pitch_estimator import PitchEstimator
@@ -29,8 +29,8 @@ parser.add_argument('-ig', '--input-gain', default=0.0, type=float)
 parser.add_argument('-dep', '--decoder-path', default="decoder.pt")
 parser.add_argument('-cep', '--content-encoder-path', default="content_encoder.pt")
 parser.add_argument('-pep', '--pitch-estimator-path', default="pitch_estimator.pt")
-parser.add_argument('-b', '--buffersize', default=12, type=int)
-parser.add_argument('-c', '--chunk', default=3072, type=int)
+parser.add_argument('-b', '--buffersize', default=8, type=int)
+parser.add_argument('-c', '--chunk', default=4096, type=int)
 parser.add_argument('-ic', '--inputchannels', default=1, type=int)
 parser.add_argument('-oc', '--outputchannels', default=1, type=int)
 parser.add_argument('-lc', '--loopbackchannels', default=1, type=int)
@@ -41,6 +41,7 @@ parser.add_argument('-k', default=4, type=int)
 parser.add_argument('-a', '--alpha', default=0.1, type=float)
 parser.add_argument('-fp16', default=False, type=bool)
 parser.add_argument('-lib', '--voice-library-path', default="NONE")
+parser.add_argument('-wpe', '--world-pitch-estimation', default=False, type=bool)
 
 
 args = parser.parse_args()
@@ -136,7 +137,10 @@ while True:
             spec = spectrogram(data)
             # convert voice
             content = CE(spec)
-            f0 = PE.estimate(spec * 4) * args.f0_rate
+            if args.world_pitch_estimation:
+                f0 = compute_f0(data)
+            else:
+                f0 = PE.estimate(spec) * args.f0_rate
 
             pitch = 12 * torch.log2(f0 / 440) - 9 # Convert f0 to pitch
             
