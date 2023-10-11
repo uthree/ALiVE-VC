@@ -26,17 +26,15 @@ parser.add_argument('-o', '--output', default=0, type=int)
 parser.add_argument('-l', '--loopback', default=-1, type=int)
 parser.add_argument('-g', '--gain', default=0.0, type=float)
 parser.add_argument('-ig', '--input-gain', default=0.0, type=float)
-parser.add_argument('-thr', '--threshold', default=5.0, type=float)
 parser.add_argument('-dep', '--decoder-path', default="decoder.pt")
 parser.add_argument('-cep', '--content-encoder-path', default="content_encoder.pt")
 parser.add_argument('-pep', '--pitch-estimator-path', default="pitch_estimator.pt")
-parser.add_argument('-b', '--buffersize', default=6, type=int)
-parser.add_argument('-c', '--chunk', default=4096, type=int)
+parser.add_argument('-b', '--buffersize', default=12, type=int)
+parser.add_argument('-c', '--chunk', default=3072, type=int)
 parser.add_argument('-ic', '--inputchannels', default=1, type=int)
 parser.add_argument('-oc', '--outputchannels', default=1, type=int)
 parser.add_argument('-lc', '--loopbackchannels', default=1, type=int)
 parser.add_argument('-f0', '--f0-rate', default=1, type=float)
-parser.add_argument('-int', '--intonation', default=1, type=float)
 parser.add_argument('-p', '--pitch', default=0, type=float)
 parser.add_argument('-t', '--target', default='NONE')
 parser.add_argument('-k', default=4, type=int)
@@ -112,8 +110,6 @@ stream_loopback = audio.open(
         output_device_index=args.loopback,
         output=True) if args.loopback != -1 else None
 
-args.threshold = args.threshold - 80
-
 print("converting voice...")
 print("")
 bar = tqdm()
@@ -125,8 +121,7 @@ while True:
         del input_buff[0]
     else:
         continue
-    if not data.max() > args.threshold:
-        data = data * 0
+
     data = np.concatenate(input_buff, 0)
     data = data.astype(np.float32) / 32768 # convert -1 to 1
     data = torch.from_numpy(data).to(device)
@@ -136,32 +131,26 @@ while True:
             # Downsample
             data = torchaudio.functional.resample(data, 44100, 16000)
             data = torchaudio.functional.gain(data, args.input_gain)
-            # Calculate loudness
-            loudness = torchaudio.functional.loudness(data, 16000)
-            if loudness.item() > args.threshold:
-                # to spectrogram
-                spec = spectrogram(data)
-                # convert voice
-                content = CE(spec)
-                f0 = PE.estimate(spec) * args.f0_rate
 
-                # Pitch Shift and Intonation Multiply
-                pitch = 12 * torch.log2(f0 / 440) - 9 # Convert f0 to pitch
+            # to spectrogram
+            spec = spectrogram(data)
+            # convert voice
+            content = CE(spec)
+            f0 = PE.estimate(spec * 4) * args.f0_rate
+
+            pitch = 12 * torch.log2(f0 / 440) - 9 # Convert f0 to pitch
             
-                mean_pitch = pitch.masked_select(torch.logical_not(torch.logical_or(pitch.isinf(), pitch.isnan()))).mean()
-                intonation = (pitch - mean_pitch)
-                pitch = mean_pitch + intonation * args.intonation + args.pitch # Intonation Multiply
+            pitch = pitch + args.pitch
 
-                f0 = 440 * 2 ** ((pitch + 9) / 12) # Convert pitch to f0
-                f0[torch.logical_or(f0.isnan(), f0.isinf())] = 0
+            f0 = 440 * 2 ** ((pitch + 9) / 12) # Convert pitch to f0
+            f0[torch.logical_or(f0.isnan(), f0.isinf())] = 0
 
-                content = match_features(content, tgt, k=args.k, alpha=args.alpha)
-                data = Dec.decode(content, f0)
+            content = match_features(content, tgt, k=args.k, alpha=args.alpha)
+            data = Dec.decode(content, f0)
+            
+            pitch_center = (args.buffersize * args.chunk) // 2048
+            bar.set_description(desc=f"F0: {f0[0, 0, pitch_center].item() / args.f0_rate:.4f} Hz")
 
-                bar.set_description(desc=f"Loudness: {loudness+80:.4f} dB, F0: {f0.mean().item() / args.f0_rate:.4f} Hz")
-
-            else:
-                data = data * 0
             # gain
             data = torchaudio.functional.gain(data, args.gain)
             # Upsample

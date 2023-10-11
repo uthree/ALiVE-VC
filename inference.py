@@ -33,6 +33,7 @@ parser.add_argument('-k', default=4, type=int)
 parser.add_argument('-c', '--chunk', default=65536, type=int)
 parser.add_argument('-lib', '--voice-library-path', default="NONE")
 parser.add_argument('-noise', '--noise-gain', default=1.0, type=float)
+parser.add_argument('--breath', default=False, type=bool)
 
 args = parser.parse_args()
 
@@ -95,6 +96,8 @@ for i, path in enumerate(paths):
             chunk = chunk.to(device)
             spec = spectrogram(chunk)
             f0 = PE.estimate(spec)
+            if args.breath:
+                f0 = f0 * 0
 
             # Pitch Shift and Intonation Multiply
             pitch = 12 * torch.log2(f0 / 440) - 9 # Convert f0 to pitch

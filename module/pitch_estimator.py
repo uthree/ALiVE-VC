@@ -10,7 +10,7 @@ class PitchEstimator(nn.Module):
                  n_fft=1024,
                  internal_channels=256,
                  hidden_channels=512,
-                 output_channels=1100,
+                 output_channels=4096,
                  num_layers=4):
         super().__init__()
         self.input_layer = nn.Conv1d(n_fft//2+1, internal_channels, 1)
@@ -26,9 +26,9 @@ class PitchEstimator(nn.Module):
         x = self.output_layer(x)
         return x
 
-    def estimate(self, x, downsample_factor=3):
+    def estimate(self, x, downsample_factor=1):
         dtype = x.dtype
         with torch.no_grad():
             x = self.forward(x)
-            f0 = torch.argmax(x, dim=1, keepdim=True).to(x.dtype)
+            f0 = torch.argmax(x, dim=1, keepdim=False).to(x.dtype).unsqueeze(1)
             return f0

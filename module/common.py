@@ -115,7 +115,7 @@ def match_features(source, reference, k=4, alpha=0.0):
 
 
 
-def compute_f0(wf, sample_rate=16000, segment_size=256, f0_min=20, f0_max=1100):
+def compute_f0(wf, sample_rate=16000, segment_size=256, f0_min=20, f0_max=4096):
     if wf.ndim == 1:
         device = wf.device
         signal = wf.detach().cpu().numpy()
