@@ -12,7 +12,7 @@ from module.spectrogram import spectrogram
 from module.pitch_estimator import PitchEstimator
 from module.content_encoder import ContentEncoder
 from module.decoder import Decoder
-from module.common import match_features
+from module.common import match_features, compute_f0
 from module.voice_library import VoiceLibrary
 
 parser = argparse.ArgumentParser()
@@ -34,6 +34,7 @@ parser.add_argument('-c', '--chunk', default=65536, type=int)
 parser.add_argument('-lib', '--voice-library-path', default="NONE")
 parser.add_argument('-noise', '--noise-gain', default=1.0, type=float)
 parser.add_argument('--breath', default=False, type=bool)
+parser.add_argument('-wpe', '--world-pitch-estimation', default=False)
 
 args = parser.parse_args()
 
@@ -95,7 +96,10 @@ for i, path in enumerate(paths):
                 chunk = torch.cat([chunk, torch.zeros(1, args.chunk - chunk.shape[1])], dim=1)
             chunk = chunk.to(device)
             spec = spectrogram(chunk)
-            f0 = PE.estimate(spec)
+            if args.world_pitch_estimation:
+                f0 = compute_f0(chunk)
+            else:
+                f0 = PE.estimate(spec)
             if args.breath:
                 f0 = f0 * 0
 
