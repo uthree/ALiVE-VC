@@ -42,10 +42,10 @@ class Decoder(nn.Module):
         self.output_layer = nn.Conv1d(internal_channels, n_fft+2, 1)
         self.n_fft = n_fft
 
-    def forward(self, x, p):
+    def forward(self, x, p, noise_gain=1):
         x = self.pad(x)
         mu, sigma = self.to_gaussian(x).chunk(2, dim=1)
-        z = mu + torch.randn_like(sigma) * torch.exp(torch.clamp(sigma, max=10))
+        z = mu + torch.randn_like(sigma) * torch.exp(torch.clamp(sigma, max=10)) * noise_gain
         x = self.input_layer(z)
         p = self.pad(p)
         p = self.f0_encoder(p)
@@ -61,8 +61,8 @@ class Decoder(nn.Module):
         wave = torch.istft(s, n_fft=self.n_fft, center=True, hop_length=256, onesided=True)
         return wave, mu, sigma
 
-    def decode(self, x, p):
-        w, m, s = self.forward(x, p)
+    def decode(self, x, p, noise_gain=0):
+        w, m, s = self.forward(x, p, noise_gain)
         return w
 
 

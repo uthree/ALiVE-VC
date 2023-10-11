@@ -198,5 +198,5 @@ class Discriminator(nn.Module):
         fake_feat = self.MPD.feat(fake) + self.MRD.feat(fake)
         loss = 0
         for r, f in zip(real_feat, fake_feat):
-            loss = loss + F.l1_loss(f, r) / len(real_feat)
+            loss = loss + F.l1_loss(f, r)
         return loss

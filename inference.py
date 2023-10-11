@@ -32,6 +32,7 @@ parser.add_argument('-a', '--alpha', default=0.0, type=float)
 parser.add_argument('-k', default=4, type=int)
 parser.add_argument('-c', '--chunk', default=65536, type=int)
 parser.add_argument('-lib', '--voice-library-path', default="NONE")
+parser.add_argument('-noise', '--noise-gain', default=1.0, type=float)
 
 args = parser.parse_args()
 
@@ -107,7 +108,7 @@ for i, path in enumerate(paths):
 
             feat = CE(spec)
             feat = match_features(feat, tgt, k=args.k, alpha=args.alpha)
-            chunk = Dec.decode(feat, f0  * args.f0_rate)
+            chunk = Dec.decode(feat, f0  * args.f0_rate, noise_gain=args.noise_gain)
             
             chunk = chunk[:, args.chunk:-args.chunk]
 
