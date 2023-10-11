@@ -164,10 +164,13 @@ cython_debug/
 *.wav
 *.mp3
 *.ogg
-*.txt
 !requirements.txt
 *.swp
 *.swo
 !empty.wav
 *.zip
 !documents/*
+backups/*
+inputs/*
+outputs/*
+targets/*
