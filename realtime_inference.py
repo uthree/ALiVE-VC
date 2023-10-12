@@ -29,8 +29,8 @@ parser.add_argument('-ig', '--input-gain', default=0.0, type=float)
 parser.add_argument('-dep', '--decoder-path', default="decoder.pt")
 parser.add_argument('-cep', '--content-encoder-path', default="content_encoder.pt")
 parser.add_argument('-pep', '--pitch-estimator-path', default="pitch_estimator.pt")
-parser.add_argument('-b', '--buffersize', default=8, type=int)
-parser.add_argument('-c', '--chunk', default=4096, type=int)
+parser.add_argument('-b', '--buffersize', default=9, type=int)
+parser.add_argument('-c', '--chunk', default=3584, type=int)
 parser.add_argument('-ic', '--inputchannels', default=1, type=int)
 parser.add_argument('-oc', '--outputchannels', default=1, type=int)
 parser.add_argument('-lc', '--loopbackchannels', default=1, type=int)
@@ -114,6 +114,7 @@ stream_loopback = audio.open(
 print("converting voice...")
 print("")
 bar = tqdm()
+
 while True:
     data = stream_input.read(chunk, exception_on_overflow=False)
     data = np.frombuffer(data, dtype=np.int16)
@@ -153,7 +154,7 @@ while True:
             data = Dec.decode(content, f0)
             
             pitch_center = (args.buffersize * args.chunk) // 2048
-            bar.set_description(desc=f"F0: {f0[0, 0, pitch_center].item() / args.f0_rate:.4f} Hz")
+            bar.set_description(desc=f"F0: {f0[0, 0, pitch_center] / args.f0_rate:.4f} Hz")
 
             # gain
             data = torchaudio.functional.gain(data, args.gain)
@@ -167,7 +168,7 @@ while True:
     data = data.astype(np.int16)
     s = (chunk * buffer_size) // 2 - (chunk // 2)
     e = (chunk * buffer_size) - s
-    data = data[s:e]
+    data = data[s:e + 256]
     data = data.tobytes()
     stream_output.write(data)
     if stream_loopback is not None:
