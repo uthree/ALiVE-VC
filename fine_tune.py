@@ -21,6 +21,7 @@ from module.common import match_features, compute_f0
 
 parser = argparse.ArgumentParser(description="train Vocoder")
 
+parser.add_argument('random_dataset')
 parser.add_argument('dataset')
 parser.add_argument('-dep', '--decoder-path', default="decoder.pt")
 parser.add_argument('-disp', '--discriminator-path', default="discriminator.pt")
@@ -28,7 +29,7 @@ parser.add_argument('-cep', '--content-encoder-path', default="content_encoder.p
 parser.add_argument('-pep', '--pitch-estimator-path', default="pitch_estimator.pt")
 parser.add_argument('-d', '--device', default='cpu')
 parser.add_argument('-e', '--epoch', default=1000, type=int)
-parser.add_argument('-b', '--batch-size', default=16, type=int)
+parser.add_argument('-b', '--batch-size', default=4, type=int)
 parser.add_argument('-lr', '--learning-rate', default=2e-4, type=float)
 parser.add_argument('-len', '--length', default=16384, type=int)
 parser.add_argument('-m', '--max-data', default=-1, type=int)
@@ -38,6 +39,7 @@ parser.add_argument('--feature-matching', default=2, type=float)
 parser.add_argument('--mel', default=45, type=float)
 parser.add_argument('--content', default=1, type=float)
 parser.add_argument('-wpe', '--world-pitch-estimation', default=False, type=bool)
+parser.add_argument('-lib', '--voice-library-path', default="NONE")
 
 args = parser.parse_args()
 
@@ -93,7 +95,16 @@ ds = WaveFileDirectory(
         max_files=args.max_data
         )
 
+random_ds = WaveFileDirectory(
+        [args.random_dataset],
+        length=args.length,
+        max_files=args.max_data
+        )
+
+
 dl = torch.utils.data.DataLoader(ds, batch_size=args.batch_size, shuffle=True)
+random_dl = torch.utils.data.DataLoader(random_ds, batch_size=args.batch_size, shuffle=True)
+
 
 scaler = torch.cuda.amp.GradScaler(enabled=args.fp16)
 
@@ -107,18 +118,28 @@ mel = torchaudio.transforms.MelSpectrogram(n_fft=1024, n_mels=80).to(device)
 
 step_count = 0
 
+VL = VoiceLibrary().to(device)
+VL.load_state_dict(torch.load(args.voice_library_path, map_location=device))
+VL_mode = True if args.voice_library_path != "NONE" else False
+
+if VL_mode:
+    OptVL = optim.AdamW(VL.parameters(), lr=args.learning_rate)
+
 def log_mel(x):
     return torch.log(torch.clamp_min(mel(x), 1e-5))
 
 for epoch in range(args.epoch):
     tqdm.write(f"Epoch #{epoch}")
     bar = tqdm(total=len(ds))
-    for batch, wave in enumerate(dl):
+    for batch, (wave, random_wave) in enumerate(zip(dl, random_dl)):
         wave = wave.to(device) * (torch.rand(wave.shape[0], 1, device=device) * 1.5 + 0.25)
         spec = spectrogram(wave)
+        random_wave = random_wave.to(device)
         
         # Train G.
         OptG.zero_grad()
+        if VL_mode:
+            OptVL.zero_grad()
         with torch.cuda.amp.autocast(enabled=args.fp16):
             with torch.no_grad():
                 if args.world_pitch_estimation:
@@ -127,8 +148,15 @@ for epoch in range(args.epoch):
                     f0 = pe.estimate(spec)
                 content = ce(spec)
 
-            wave_recon, mu, sigma = dec(match_features(cut_center(content), content), cut_center(f0))
-            wave_fake = dec.decode(match_features(cut_center(content), content.roll(1, dims=0)),
+            if VL_mode:
+                random_content = ce(spectrogram(random_wave))
+                wave_recon, mu, sigma = dec(VL.match(cut_center(content)), cut_center(f0))
+                wave_fake = dec.decode(VL.match(cut_center(random_content)),
+                                       cut_center(f0) * (0.5 + 1.5 * torch.rand(1, 1, device=device)))
+            else:
+                random_content = ce(spectrogram(random_wave))
+                wave_recon, mu, sigma = dec(match_features(cut_center(content), content), cut_center(f0))
+                wave_fake = dec.decode(match_features(cut_center(random_content), content.roll(1, dims=0)),
                                    cut_center(f0) * (0.5 + 1.5 * torch.rand(1, 1, device=device)))
             logits = D.logits(wave_fake) + D.logits(wave_recon)
             
@@ -144,6 +172,8 @@ for epoch in range(args.epoch):
             loss_g = loss_mel * args.mel + loss_feat * args.feature_matching + loss_con * args.content + loss_adv + loss_kl * 0.2
         scaler.scale(loss_g).backward()
         scaler.step(OptG)
+        if VL_mode:
+            scaler.step(OptVL)
 
         # Train D.
         OptD.zero_grad()
@@ -172,7 +202,11 @@ for epoch in range(args.epoch):
 
         if batch % 300 == 0:
             save_models(dec, D)
+            if VL_mode:
+                torch.save(VL.state_dict(), args.voice_library_path)
 
 print("Training Complete!")
 save_models(dec, D)
+if VL_mode:
+    torch.save(VL.state_dict(), args.voice_library_path)
 
