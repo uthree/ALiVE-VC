@@ -21,14 +21,13 @@ from module.common import match_features, compute_f0
 
 parser = argparse.ArgumentParser(description="train Vocoder")
 
-parser.add_argument('random_dataset')
 parser.add_argument('dataset')
 parser.add_argument('-dep', '--decoder-path', default="decoder.pt")
 parser.add_argument('-disp', '--discriminator-path', default="discriminator.pt")
 parser.add_argument('-cep', '--content-encoder-path', default="content_encoder.pt")
 parser.add_argument('-pep', '--pitch-estimator-path', default="pitch_estimator.pt")
 parser.add_argument('-d', '--device', default='cpu')
-parser.add_argument('-e', '--epoch', default=1000, type=int)
+parser.add_argument('-e', '--epoch', default=100, type=int)
 parser.add_argument('-b', '--batch-size', default=4, type=int)
 parser.add_argument('-lr', '--learning-rate', default=2e-4, type=float)
 parser.add_argument('-len', '--length', default=16384, type=int)
@@ -95,16 +94,8 @@ ds = WaveFileDirectory(
         max_files=args.max_data
         )
 
-random_ds = WaveFileDirectory(
-        [args.random_dataset],
-        length=args.length,
-        max_files=args.max_data
-        )
-
 
 dl = torch.utils.data.DataLoader(ds, batch_size=args.batch_size, shuffle=True)
-random_dl = torch.utils.data.DataLoader(random_ds, batch_size=args.batch_size, shuffle=True)
-
 
 scaler = torch.cuda.amp.GradScaler(enabled=args.fp16)
 
@@ -118,11 +109,11 @@ mel = torchaudio.transforms.MelSpectrogram(n_fft=1024, n_mels=80).to(device)
 
 step_count = 0
 
-VL = VoiceLibrary().to(device)
-VL.load_state_dict(torch.load(args.voice_library_path, map_location=device))
 VL_mode = True if args.voice_library_path != "NONE" else False
 
 if VL_mode:
+    VL = VoiceLibrary().to(device)
+    VL.load_state_dict(torch.load(args.voice_library_path, map_location=device))
     OptVL = optim.AdamW(VL.parameters(), lr=args.learning_rate)
 
 def log_mel(x):
@@ -131,11 +122,10 @@ def log_mel(x):
 for epoch in range(args.epoch):
     tqdm.write(f"Epoch #{epoch}")
     bar = tqdm(total=len(ds))
-    for batch, (wave, random_wave) in enumerate(zip(dl, random_dl)):
+    for batch, wave in enumerate(dl):
         wave = wave.to(device) * (torch.rand(wave.shape[0], 1, device=device) * 1.5 + 0.25)
         spec = spectrogram(wave)
-        random_wave = random_wave.to(device)
-        
+
         # Train G.
         OptG.zero_grad()
         if VL_mode:
@@ -149,16 +139,10 @@ for epoch in range(args.epoch):
                 content = ce(spec)
 
             if VL_mode:
-                random_content = ce(spectrogram(random_wave))
                 wave_recon, mu, sigma = dec(VL.match(cut_center(content)), cut_center(f0))
-                wave_fake = dec.decode(VL.match(cut_center(random_content)),
-                                       cut_center(f0) * (0.5 + 1.5 * torch.rand(1, 1, device=device)))
             else:
-                random_content = ce(spectrogram(random_wave))
                 wave_recon, mu, sigma = dec(match_features(cut_center(content), content), cut_center(f0))
-                wave_fake = dec.decode(match_features(cut_center(random_content), content.roll(1, dims=0)),
-                                   cut_center(f0) * (0.5 + 1.5 * torch.rand(1, 1, device=device)))
-            logits = D.logits(wave_fake) + D.logits(wave_recon)
+            logits = D.logits(wave_recon)
             
             loss_mel = (log_mel(wave_recon) - log_mel(cut_center_wav(wave))).abs().mean()
             loss_feat = D.feat_loss(wave_recon, cut_center_wav(wave))
@@ -177,9 +161,9 @@ for epoch in range(args.epoch):
 
         # Train D.
         OptD.zero_grad()
-        wave_fake = wave_fake.detach()
+        wave_recon = wave_recon.detach()
         with torch.cuda.amp.autocast(enabled=args.fp16):
-            logits_fake = D.logits(wave_fake)
+            logits_fake = D.logits(wave_recon)
             logits_real = D.logits(cut_center_wav(wave))
             loss_d = 0
             for logit in logits_real:
@@ -200,7 +184,7 @@ for epoch in range(args.epoch):
         N = wave.shape[0]
         bar.update(N)
 
-        if batch % 300 == 0:
+        if batch % 100 == 0:
             save_models(dec, D)
             if VL_mode:
                 torch.save(VL.state_dict(), args.voice_library_path)

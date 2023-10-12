@@ -41,9 +41,8 @@ python3 train_decoder.py path/to/jvs/corpus -d cuda
 ```
 
 8. 特定の話者でファインチューニング  
-第一引数にランダムな声またはあなたの声、第二引数に変換対象の声のファイルが入ったフォルダのパスを指定してください。
 ```sh
-python3 fine_tune.py path/to/your/voices path/to/target/voices -d cuda
+python3 path/to/target/voices -d cuda
 ```
 
 
