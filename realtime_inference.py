@@ -30,7 +30,7 @@ parser.add_argument('-dep', '--decoder-path', default="decoder.pt")
 parser.add_argument('-cep', '--content-encoder-path', default="content_encoder.pt")
 parser.add_argument('-pep', '--pitch-estimator-path', default="pitch_estimator.pt")
 parser.add_argument('-b', '--buffersize', default=9, type=int)
-parser.add_argument('-c', '--chunk', default=2048, type=int)
+parser.add_argument('-c', '--chunk', default=3072, type=int)
 parser.add_argument('-ic', '--inputchannels', default=1, type=int)
 parser.add_argument('-oc', '--outputchannels', default=1, type=int)
 parser.add_argument('-lc', '--loopbackchannels', default=1, type=int)
@@ -168,7 +168,7 @@ while True:
     data = data.astype(np.int16)
     s = (chunk * buffer_size) // 2 - (chunk // 2)
     e = (chunk * buffer_size) - s
-    data = data[s:e + 256]
+    data = data[s:e]
     data = data.tobytes()
     stream_output.write(data)
     if stream_loopback is not None:
