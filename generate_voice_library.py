@@ -20,7 +20,7 @@ args = parser.parse_args()
 
 ds = WaveFileDirectory(
         [args.dataset],
-        length=65536,
+        length=131072,
         max_files=-1
         )
 
@@ -32,10 +32,12 @@ CE.load_state_dict(torch.load(args.content_encoder_path, map_location='cpu'))
 VL = VoiceLibrary()
 
 print("Generating Library...")
-for i, wave in tqdm(enumerate(dl), total=len(dl)):
-    n = random.randint(0, 127)
+for i, wave in tqdm(enumerate(dl), total=512):
+    n = random.randint(0, 511)
     t = CE(spectrogram(wave))[0, :, n]
     VL.tokens.data[:, :, n] = t
+    if i == 512:
+        break
 print("Writing file...")
 torch.save(VL.state_dict(), args.voice_library_path)
 print("Complete!")
