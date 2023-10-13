@@ -1,5 +1,6 @@
 # ZVC
-軽量なベクトル検索ベースのAIボイスチェンジャ
+軽量なベクトル検索ベースのAIボイスチェンジャ  
+(このリポジトリは実験段階です。内容は予告なく変更される場合があります。)
 
 ## アーキテクチャ
 ![Arch.](https://github.com/uthree/zvc/blob/main/documents/architecture.png)
