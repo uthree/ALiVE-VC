@@ -133,3 +133,10 @@ def compute_f0(wf, sample_rate=16000, segment_size=256, f0_min=20, f0_max=4096):
         pitchs = [compute_f0(wave[0], sample_rate, segment_size) for wave in waves]
         pitchs = torch.stack(pitchs, dim=0)
         return pitchs
+
+
+def compute_amplitude(wf, segment_size=256):
+    x = x.abs()
+    x = x.unsqueeze(1)
+    x = F.interpolate(x, x.shape[2] // segment_size, mode='linear')
+    return x

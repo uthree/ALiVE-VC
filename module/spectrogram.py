@@ -2,15 +2,8 @@ import torch
 import matplotlib.pyplot as plt
 
 
-global hann_window
-hann_window = {}
-
 def spectrogram(x):
-    if str(x.device) not in hann_window:
-        hann_window[str(x.device)] = torch.hann_window(1024).to(x.device)
-    w = hann_window[str(x.device)]
-    x = torch.stft(x, n_fft=1024, hop_length=256, center=True,
-                   return_complex=True, normalized=False, window=w).abs()
+    x = torch.stft(x, 1024, 256, 1024, center=True, return_complex=True).abs()
     return x[:, :, 1:]
 
 

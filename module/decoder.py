@@ -19,50 +19,71 @@ class F0Encoder(nn.Module):
         return x
 
 
+class AmplitudeEncoder(nn.Module):
+    def __init__(self, output_dim=512):
+        super().__init__()
+        self.c1 = nn.Conv1d(1, output_dim, 1, 1, 0)
+
+    def forward(self, amp):
+        return self.c1(amp)
+
+
+class GaussianEncoder(nn.Module):
+    def __init__(self, hubert_dim=768, output_dim=512):
+        super().__init__()
+        self.c1 = nn.Conv1d(hubert_dim, hubert_dim, 7, 1, 3, groups=768)
+        self.c2 = nn.Conv1d(hubert_dim, hubert_dim, 1, 1, 0)
+        self.c3 = nn.Conv1d(hubert_dim, output_dim*2, 1, 1, 0)
+
+    def forward(self, x):
+        x = self.c1(x)
+        x = self.c2(x)
+        x = F.gelu(x)
+        x = self.c3(x)
+        return x
+
+
 class Decoder(nn.Module):
     def __init__(self,
                  input_channels=768,
                  internal_channels=512,
                  hidden_channels=1536,
-                 f0_channels=512,
+                 condition_channels=512,
                  n_fft=1024,
-                 num_layers=10):
+                 num_layers=8):
         super().__init__()
         self.pad = nn.ReflectionPad1d([1, 0])
-        self.f0_encoder = F0Encoder(f0_channels)
-        self.to_gaussian = nn.Sequential(
-                nn.Conv1d(input_channels, input_channels, 1),
-                nn.GELU(),
-                nn.Conv1d(input_channels, input_channels * 2, 1))
+        self.f0_encoder = F0Encoder(condition_channels)
+        self.amp_encoder = AmplitudeEncoder(condition_channels)
+        self.gaussian_encoder = GaussianEncoder(input_channels, internal_channels)
+
         self.input_layer = nn.Conv1d(input_channels, internal_channels, 1)
         self.mid_layers = nn.ModuleList([
-            AdaptiveConvNeXt1d(internal_channels, hidden_channels, f0_channels, scale=1/num_layers)
+            AdaptiveConvNeXt1d(internal_channels, hidden_channels, condition_channels, scale=1/num_layers)
             for _ in range(num_layers)])
-        self.last_norm = AdaptiveChannelNorm(internal_channels, f0_channels)
+        self.last_norm = AdaptiveChannelNorm(internal_channels, condition_channels)
         self.output_layer = nn.Conv1d(internal_channels, n_fft+2, 1)
+
         self.n_fft = n_fft
 
-    def forward(self, x, p, noise_gain=1):
-        x = self.pad(x)
-        mu, sigma = self.to_gaussian(x).chunk(2, dim=1)
-        z = mu + torch.randn_like(sigma) * torch.exp(torch.clamp(sigma, max=10)) * noise_gain
-        x = self.input_layer(z)
-        p = self.pad(p)
-        p = self.f0_encoder(p)
-        for l in self.mid_layers:
-            x = l(x, p)
-        x = self.last_norm(x, p)
-        mag, phase = self.output_layer(x).chunk(2, dim=1)
-        mag = torch.clamp_max(mag, 6.0)
-        mag = torch.exp(mag)
-        mag = mag.to(torch.float)
-        phase = phase.to(torch.float)
-        s = mag * (torch.cos(phase) + 1j * torch.sin(phase))
-        wave = torch.istft(s, n_fft=self.n_fft, center=True, hop_length=256, onesided=True)
-        return wave, mu, sigma
+    def forward(self, x, f0, amp, noise_gain=1):
+        mu, sigma = self.gaussian_encoder(x)
+        amp = self.amp_encoder(amp)
+        f0 = self.f0_encoder(f0)
 
-    def decode(self, x, p, noise_gain=0):
-        w, m, s = self.forward(x, p, noise_gain)
-        return w
+        x = mu + torch.exp(sigma) * torch.randn_like(sigma)
+
+        condition = f0 + amp
+
+        x = self.input_layer(x)
+        for layer in self.mid_layers(x):
+            x = layer(x, condition)
+        x = self.output_layer(x, condition)
+
+        return x, mu, sigma
+
+
+    def decode(self, x, f0, amp, noise_gain=1):
+        x, _, _ = self.forwrd(x, f0, amp)
 
 
