@@ -174,3 +174,4 @@ backups/*
 inputs/*
 outputs/*
 targets/*
+*.onnx

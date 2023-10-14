@@ -65,13 +65,17 @@ class Decoder(nn.Module):
         self.output_layer = nn.Conv1d(internal_channels, n_fft+2, 1)
 
         self.n_fft = n_fft
+        self.internal_channels = internal_channels
 
-    def forward(self, x, f0, amp, noise_gain=1):
+    def forward(self, x, f0, amplitude, noise=None):
         mu, sigma = self.gaussian_encoder(x)
-        amp = self.amp_encoder(amp)
+        amp = self.amp_encoder(amplitude)
         f0 = self.f0_encoder(f0)
-
-        x = mu + torch.exp(sigma) * torch.randn_like(sigma)
+        
+        if noise == None:
+            x = mu + torch.exp(sigma) * torch.randn_like(sigma)
+        else:
+            x = mu + torch.exp(sigma) * noise
 
         condition = f0 + amp
 
@@ -99,7 +103,37 @@ class Decoder(nn.Module):
 
 
     def decode(self, x, f0, amp, noise_gain=1):
+        noise = torch.randn(x.shape[0], self.internal_channels,  x.shape[2], device=x.device) * noise_gain
         x, _, _ = self.forward(x, f0, amp)
         return x
 
+
+class DecoderOnnxWrapper(nn.Module):
+    def __init__(self, decoder):
+        super().__init__()
+        self.decoder = decoder
+
+    def forward(self, x, f0, amplitude, noise):
+        mu, sigma = self.decoder.gaussian_encoder(x)
+        amp = self.decoder.amp_encoder(amplitude)
+        f0 = self.decoder.f0_encoder(f0)
+        
+        x = mu + torch.exp(sigma) * noise
+
+        condition = f0 + amp
+
+        condition = self.decoder.pad(condition)
+        x = self.decoder.pad(x)
+
+        x = self.decoder.input_layer(x)
+        for layer in self.decoder.mid_layers:
+            x = layer(x, condition)
+        x = self.decoder.output_layer(x)
+
+        dtype = x.dtype
+        x = x.to(torch.float)
+
+        mag, phase = x.chunk(2, dim=1)
+
+        return mag, phase
 
