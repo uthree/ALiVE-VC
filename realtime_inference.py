@@ -4,7 +4,7 @@ import numpy as np
 import torch
 import torchaudio
 from module.spectrogram import spectrogram
-from module.common import match_features, compute_f0
+from module.common import match_features, compute_f0, compute_amplitude
 from module.decoder import Decoder
 from module.content_encoder import ContentEncoder
 from module.pitch_estimator import PitchEstimator
@@ -77,7 +77,7 @@ if args.target != "NONE":
     print("loading target...")
     wf, sr = torchaudio.load(args.target)
     wf = wf.to(device)
-    wf = torchaudio.functional.resample(wf, sr, 16000)
+    wf = torchaudio.functional.resample(wf, sr, 22050)
     wf = wf / wf.abs().max()
     wf = wf[:1]
     tgt = CE(spectrogram(wf)).detach()[:, :, ::4]
@@ -131,8 +131,10 @@ while True:
     with torch.no_grad():
         with torch.cuda.amp.autocast(enabled=args.fp16):
             # Downsample
-            data = torchaudio.functional.resample(data, 44100, 16000)
+            data = torchaudio.functional.resample(data, 44100, 22050)
             data = torchaudio.functional.gain(data, args.input_gain)
+
+            amp = compute_amplitude(data)
 
             # to spectrogram
             spec = spectrogram(data)
@@ -151,7 +153,7 @@ while True:
             f0[torch.logical_or(f0.isnan(), f0.isinf())] = 0
 
             content = match_features(content, tgt, k=args.k, alpha=args.alpha)
-            data = Dec.decode(content, f0)
+            data = Dec.decode(content, f0, amp)
             
             pitch_center = (args.buffersize * args.chunk) // 2048
             bar.set_description(desc=f"F0: {f0[0, 0, pitch_center] / args.f0_rate:.4f} Hz")
@@ -159,7 +161,7 @@ while True:
             # gain
             data = torchaudio.functional.gain(data, args.gain)
             # Upsample
-            data = torchaudio.functional.resample(data, 16000, 44100)
+            data = torchaudio.functional.resample(data, 22050, 44100)
             data = data[0]
 
     data = data.cpu().numpy()
