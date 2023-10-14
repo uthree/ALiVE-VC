@@ -17,7 +17,7 @@ from module.pitch_estimator import PitchEstimator
 from module.decoder import Decoder
 from module.voice_library import VoiceLibrary
 from module.discriminator import Discriminator
-from module.common import match_features, compute_f0
+from module.common import match_features, compute_f0, compute_amplitude
 
 parser = argparse.ArgumentParser(description="train Vocoder")
 
@@ -127,9 +127,11 @@ for epoch in range(args.epoch):
                     f0 = pe.estimate(spec)
                 content = ce(spec)
 
-            wave_recon, mu, sigma = dec(match_features(cut_center(content), content), cut_center(f0))
+            amp = compute_amplitude(wave)
+
+            wave_recon, mu, sigma = dec(match_features(cut_center(content), content), cut_center(f0), cut_center(amp))
             wave_fake = dec.decode(match_features(cut_center(content), content.roll(1, dims=0)),
-                                   cut_center(f0) * (0.5 + 1.5 * torch.rand(1, 1, device=device)))
+                                   cut_center(f0) * (0.5 + 1.5 * torch.rand(1, 1, device=device)), cut_center(amp))
             logits = D.logits(wave_fake) + D.logits(wave_recon)
             
             loss_mel = (log_mel(wave_recon) - log_mel(cut_center_wav(wave))).abs().mean()

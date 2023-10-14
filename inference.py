@@ -12,7 +12,7 @@ from module.spectrogram import spectrogram
 from module.pitch_estimator import PitchEstimator
 from module.content_encoder import ContentEncoder
 from module.decoder import Decoder
-from module.common import match_features, compute_f0
+from module.common import match_features, compute_f0, compute_amplitude
 from module.voice_library import VoiceLibrary
 
 parser = argparse.ArgumentParser()
@@ -56,7 +56,7 @@ if args.target != "NONE":
     print("loading target...")
     wf, sr = torchaudio.load(args.target)
     wf = wf.to(device)
-    wf = torchaudio.functional.resample(wf, sr, 16000)
+    wf = torchaudio.functional.resample(wf, sr, 22050)
     wf = wf / wf.abs().max()
     wf = wf[:1]
     tgt = CE(spectrogram(wf)).detach()
@@ -73,7 +73,7 @@ paths = glob.glob(os.path.join(args.inputs, "*"))
 for i, path in enumerate(paths):
     wf, sr = torchaudio.load(path)
     wf = wf.to('cpu')
-    wf = torchaudio.functional.resample(wf, sr, 16000)
+    wf = torchaudio.functional.resample(wf, sr, 22050)
     wf = wf / wf.abs().max()
     wf = wf.mean(dim=0, keepdim=True)
     total_length = wf.shape[1]
@@ -102,6 +102,9 @@ for i, path in enumerate(paths):
             if args.breath:
                 f0 = f0 * 0
 
+            # Compute amplitude
+            amp = compute_amplitude(chunk)
+
             # Pitch Shift and Intonation Multiply
             pitch = 12 * torch.log2(f0 / 440) - 9 # Convert f0 to pitch
             
@@ -114,13 +117,13 @@ for i, path in enumerate(paths):
 
             feat = CE(spec)
             feat = match_features(feat, tgt, k=args.k, alpha=args.alpha)
-            chunk = Dec.decode(feat, f0  * args.f0_rate, noise_gain=args.noise_gain)
+            chunk = Dec.decode(feat, f0  * args.f0_rate, amp, noise_gain=args.noise_gain)
             
             chunk = chunk[:, args.chunk:-args.chunk]
 
             result.append(chunk.to('cpu'))
         wf = torch.cat(result, dim=1)[:, :total_length]
-        wf = torchaudio.functional.resample(wf, 16000, sr)
+        wf = torchaudio.functional.resample(wf, 22050, sr)
         wf = torchaudio.functional.gain(wf, args.gain)
     wf = wf.cpu().detach()
     wf = wf / wf.abs().max()

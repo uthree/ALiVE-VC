@@ -67,10 +67,12 @@ for epoch in range(args.epoch):
         spec = spectrogram(wave)
         
         # Train G.
+        wave_resampled = torchaudio.functional.resample(wave, 22050, 16000)
         optimizer.zero_grad()
         with torch.cuda.amp.autocast(enabled=args.fp16):
-            hubert_feature = extract_hubert_feature(hubert, wave)
+            hubert_feature = extract_hubert_feature(hubert, wave_resampled)
             output = model(spec)
+            hubert_feature = F.interpolate(hubert_feature, output.shape[2], mode='linear')
             loss = (output - hubert_feature).abs().mean()
         scaler.scale(loss).backward()
         scaler.step(optimizer)

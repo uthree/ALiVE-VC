@@ -40,7 +40,7 @@ class GaussianEncoder(nn.Module):
         x = self.c2(x)
         x = F.gelu(x)
         x = self.c3(x)
-        return x
+        return x.chunk(2, dim=1)
 
 
 class Decoder(nn.Module):
@@ -57,7 +57,7 @@ class Decoder(nn.Module):
         self.amp_encoder = AmplitudeEncoder(condition_channels)
         self.gaussian_encoder = GaussianEncoder(input_channels, internal_channels)
 
-        self.input_layer = nn.Conv1d(input_channels, internal_channels, 1)
+        self.input_layer = nn.Conv1d(internal_channels, internal_channels, 1)
         self.mid_layers = nn.ModuleList([
             AdaptiveConvNeXt1d(internal_channels, hidden_channels, condition_channels, scale=1/num_layers)
             for _ in range(num_layers)])
@@ -75,15 +75,31 @@ class Decoder(nn.Module):
 
         condition = f0 + amp
 
+        condition = self.pad(condition)
+        x = self.pad(x)
+
         x = self.input_layer(x)
-        for layer in self.mid_layers(x):
+        for layer in self.mid_layers:
             x = layer(x, condition)
-        x = self.output_layer(x, condition)
+        x = self.output_layer(x)
+
+        dtype = x.dtype
+        x = x.to(torch.float)
+
+        mag, phase = x.chunk(2, dim=1)
+        
+        mag = torch.exp(mag.clamp_max(6.0))
+        phase = (torch.cos(phase) + 1j * torch.sin(phase))
+        s = mag * phase
+        x = torch.istft(s, 1024, 256)
+
+        x = x.to(dtype)
 
         return x, mu, sigma
 
 
     def decode(self, x, f0, amp, noise_gain=1):
-        x, _, _ = self.forwrd(x, f0, amp)
+        x, _, _ = self.forward(x, f0, amp)
+        return x
 
 
