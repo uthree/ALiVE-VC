@@ -141,9 +141,9 @@ for epoch in range(args.epoch):
             amp = compute_amplitude(wave)
 
             if VL_mode:
-                wave_recon, mu, sigma = dec(VL.match(cut_center(content)), cut_center(f0), compute_amplitude(amp))
+                wave_recon, mu, sigma = dec(VL.match(cut_center(content)), cut_center(f0), cut_center(amp))
             else:
-                wave_recon, mu, sigma = dec(match_features(cut_center(content), content), cut_center(f0), compute_amplitude(amp))
+                wave_recon, mu, sigma = dec(match_features(cut_center(content), content), cut_center(f0), cut_center(amp))
             logits = D.logits(wave_recon)
             
             loss_mel = (log_mel(wave_recon) - log_mel(cut_center_wav(wave))).abs().mean()
