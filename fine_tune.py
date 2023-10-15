@@ -192,7 +192,10 @@ for epoch in range(args.epoch):
             if VL_mode:
                 torch.save(VL.state_dict(), args.voice_library_path)
         if args.max_step != -1 and step_count >= args.max_step:
-            break
+            save_models(dec, D)
+            if VL_mode:
+                torch.save(VL.state_dict(), args.voice_library_path)
+            exit()
 
 print("Training Complete!")
 save_models(dec, D)
