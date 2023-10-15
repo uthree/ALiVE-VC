@@ -25,7 +25,7 @@ parser.add_argument('-lib', '--voice-library-path', default="NONE")
 
 args = parser.parse_args()
 
-device = torch.device(args.device)
+device = torch.device('cpu')
 
 PE = PitchEstimator().to(device)
 CE = ContentEncoder().to(device)
