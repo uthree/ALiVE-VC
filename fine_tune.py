@@ -38,6 +38,7 @@ parser.add_argument('--feature-matching', default=2, type=float)
 parser.add_argument('--mel', default=45, type=float)
 parser.add_argument('--content', default=1, type=float)
 parser.add_argument('-wpe', '--world-pitch-estimation', default=False, type=bool)
+parser.add_argument('--max-step', default=-1, type=int)
 parser.add_argument('-lib', '--voice-library-path', default="NONE")
 
 args = parser.parse_args()
@@ -190,6 +191,8 @@ for epoch in range(args.epoch):
             save_models(dec, D)
             if VL_mode:
                 torch.save(VL.state_dict(), args.voice_library_path)
+        if args.max_step != -1 and step_count >= args.max_step:
+            break
 
 print("Training Complete!")
 save_models(dec, D)
