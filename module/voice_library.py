@@ -9,6 +9,9 @@ class VoiceLibrary(nn.Module):
         self.tokens = nn.Parameter(torch.randn(1, hubert_dim, num_tokens))
         self.hubert_dim = hubert_dim
 
+    def forward(self, source):
+        return self.match(source)
+
     def match(self, source, k=4, alpha=0.0):
         reference = self.tokens.expand(
                 source.shape[0],

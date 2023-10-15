@@ -43,8 +43,6 @@ if args.voice_library_path != "NONE":
     print(f"loading voice library {args.voice_library_path}")
     VL = VoiceLibrary().to(device)
     VL.load_state_dict(torch.load(args.voice_library_path, map_location=device))
-    tgt = torch.cat([tgt, VL.tokens], dim=2)
-
 
 print("Exporting ONNX...")
 
@@ -91,6 +89,20 @@ torch.onnx.export(
             "f0" : {0: "batch_size", 2: "length"},
             "amplitude": {0: "batch_size", 2: "length"}
             })
+
+if VL is not None:
+    print("Exporting Voice Library")
+    dummy_input = torch.randn(1, 768, 256)
+    torch.onnx.export(
+            VL,
+            dummy_input,
+            os.path.join(args.outputs, "voice_library.onnx"),
+            opset_version=15,
+            input_names=["input"],
+            output_names=["output"],
+            dynamic_axes={
+                "input": {0: "barch_size", 2: "length"}
+                })
 
 
 print("Complete!")
