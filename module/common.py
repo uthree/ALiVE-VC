@@ -58,7 +58,7 @@ class ConvNeXt1d(nn.Module):
 
 
 class AdaptiveConvNeXt1d(nn.Module):
-    def __init__(self, channels=512, hidden_channels=1536, pitch_emb=128, kernel_size=7, scale=1):
+    def __init__(self, channels=512, hidden_channels=1536, pitch_emb=512, kernel_size=7, scale=1):
         super().__init__()
         self.dw_conv = nn.Conv1d(channels, channels, kernel_size, padding=kernel_size//2, groups=channels)
         self.norm = AdaptiveChannelNorm(channels, pitch_emb)

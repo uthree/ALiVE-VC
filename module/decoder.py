@@ -50,7 +50,7 @@ class Decoder(nn.Module):
                  hidden_channels=1536,
                  condition_channels=512,
                  n_fft=1024,
-                 num_layers=8):
+                 num_layers=10):
         super().__init__()
         self.pad = nn.ReflectionPad1d([1, 0])
         self.f0_encoder = F0Encoder(condition_channels)
