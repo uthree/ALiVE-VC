@@ -106,7 +106,7 @@ OptD = optim.AdamW(D.parameters(), lr=args.learning_rate, betas=(0.9, 0.99))
 SchedulerG = torch.optim.lr_scheduler.CosineAnnealingLR(OptG, 5000)
 SchedulerD = torch.optim.lr_scheduler.CosineAnnealingLR(OptD, 5000)
 
-mel = torchaudio.transforms.MelSpectrogram(n_fft=1024, n_mels=80).to(device)
+mel = torchaudio.transforms.MelSpectrogram(22050, n_fft=1024, n_mels=80).to(device)
 
 step_count = 0
 
