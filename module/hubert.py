@@ -13,7 +13,7 @@ def load_hubert(device=torch.device('cpu')):
 
 def extract_hubert_feature(wavlm, wave, segment_size=256):
     length = wave.shape[1] // segment_size
-    feature = wavlm(wave, output_hidden_states=True).hidden_states[6]
+    feature = wavlm(wave, output_hidden_states=True).hidden_states[12]
     feature = feature.transpose(1, 2)
     feature = F.interpolate(feature, length, mode='linear')
     return feature

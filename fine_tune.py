@@ -154,7 +154,7 @@ for epoch in range(args.epoch):
 
             loss_adv = 0
             for logit in logits:
-                loss_adv += F.relu(1 - logit).mean()
+                loss_adv += (logit ** 2).mean()
             
             loss_g = loss_mel * args.mel + loss_feat * args.feature_matching + loss_con * args.content + loss_adv + loss_kl * 0.2
         scaler.scale(loss_g).backward()
@@ -170,9 +170,9 @@ for epoch in range(args.epoch):
             logits_real = D.logits(cut_center_wav(wave))
             loss_d = 0
             for logit in logits_real:
-                loss_d += F.relu(1 - logit).mean()
+                loss_d += (logit ** 2).mean()
             for logit in logits_fake:
-                loss_d += F.relu(1 + logit).mean()
+                loss_d += ((logit - 1) ** 2).mean()
         scaler.scale(loss_d).backward()
         scaler.step(OptD)
 
