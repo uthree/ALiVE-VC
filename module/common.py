@@ -7,7 +7,7 @@ import numpy as np
 
 
 class ChannelNorm(nn.Module):
-    def __init__(self, channels, eps=1e-6):
+    def __init__(self, channels, eps=1e-4):
         super().__init__()
         self.scale = nn.Parameter(torch.ones(1, channels, 1))
         self.shift = nn.Parameter(torch.zeros(1, channels, 1))
@@ -22,7 +22,7 @@ class ChannelNorm(nn.Module):
 
 
 class AdaptiveChannelNorm(nn.Module):
-    def __init__(self, channels, pitch_emb, eps=1e-6):
+    def __init__(self, channels, pitch_emb, eps=1e-4):
         super().__init__()
         self.shift = nn.Conv1d(pitch_emb, channels, 1, 1, 0)
         self.scale = nn.Conv1d(pitch_emb, channels, 1, 1, 0)
@@ -139,5 +139,5 @@ def compute_f0(wf, sample_rate=22050, segment_size=256, f0_min=20, f0_max=4096):
 def compute_amplitude(x, segment_size=256):
     x = x.abs()
     x = x.unsqueeze(1)
-    x = F.interpolate(x, x.shape[2] // segment_size, mode='linear')
+    x = F.interpolate(x.abs(), x.shape[2] // segment_size, mode='linear')
     return x
