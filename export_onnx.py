@@ -9,7 +9,7 @@ import torch.nn.functional as F
 from tqdm import tqdm
 
 from module.spectrogram import spectrogram
-from module.pitch_estimator import PitchEstimator
+from module.pitch_estimator import PitchEstimator, PitchEstimatorOnnxWraper
 from module.content_encoder import ContentEncoder
 from module.decoder import Decoder, DecoderOnnxWrapper
 from module.common import match_features, compute_f0, compute_amplitude
@@ -48,6 +48,7 @@ print("Exporting ONNX...")
 
 print("Exporting Pitch Estimator...")
 dummy_input = torch.randn(1, 513, 256)
+PE = PitchEstimatorOnnxWraper(PE)
 torch.onnx.export(
         PE,
         dummy_input,

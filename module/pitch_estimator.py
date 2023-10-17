@@ -32,3 +32,12 @@ class PitchEstimator(nn.Module):
             x = self.forward(x)
             f0 = torch.argmax(x, dim=1, keepdim=False).to(x.dtype).unsqueeze(1)
             return f0
+
+
+class PitchEstimatorOnnxWraper(nn.Module):
+    def __init__(self, pe):
+        super().__init__()
+        self.pe = pe
+
+    def forward(self, x):
+        return self.pe.estimate(x)
