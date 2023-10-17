@@ -85,6 +85,7 @@ class Decoder(nn.Module):
         x = self.input_layer(x)
         for layer in self.mid_layers:
             x = layer(x, condition)
+        x = self.last_norm(x, condition)
         x = self.output_layer(x)
 
         dtype = x.dtype
@@ -128,10 +129,8 @@ class DecoderOnnxWrapper(nn.Module):
         x = self.decoder.input_layer(x)
         for layer in self.decoder.mid_layers:
             x = layer(x, condition)
+        x = self.decoder.last_norm(x, condition)
         x = self.decoder.output_layer(x)
-
-        dtype = x.dtype
-        x = x.to(torch.float)
 
         mag, phase = x.chunk(2, dim=1)
 
