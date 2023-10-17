@@ -88,7 +88,8 @@ torch.onnx.export(
         dynamic_axes={
             "input": {0: "barch_size", 2: "length"},
             "f0" : {0: "batch_size", 2: "length"},
-            "amplitude": {0: "batch_size", 2: "length"}
+            "amplitude": {0: "batch_size", 2: "length"},
+            "noise": {0: "batch_size", 2: "length"}
             })
 
 if VL is not None:
