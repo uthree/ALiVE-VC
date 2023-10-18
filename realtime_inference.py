@@ -42,6 +42,10 @@ parser.add_argument('-a', '--alpha', default=0.1, type=float)
 parser.add_argument('-fp16', default=False, type=bool)
 parser.add_argument('-lib', '--voice-library-path', default="NONE")
 parser.add_argument('-wpe', '--world-pitch-estimation', default=False, type=bool)
+parser.add_argument('-isr', '--input-sr', default=44100, type=int)
+parser.add_argument('-osr', '--output-sr', default=44100, type=int)
+parser.add_argument('-lsr', '--loopback-sr', default=44100, type=int)
+
 
 
 args = parser.parse_args()
@@ -77,7 +81,7 @@ if args.target != "NONE":
     print("loading target...")
     wf, sr = torchaudio.load(args.target)
     wf = wf.to(device)
-    wf = torchaudio.functional.resample(wf, sr, 22050)
+    wf = torchaudio.functional.resample(wf, sr, 16000)
     wf = wf / wf.abs().max()
     wf = wf[:1]
     tgt = CE(spectrogram(wf)).detach()[:, :, ::4]
@@ -94,19 +98,19 @@ print(f"Loaded {tgt.shape[2]} words.")
 
 stream_input = audio.open(
         format=pyaudio.paInt16,
-        rate=44100,
+        rate=args.input_sr,
         channels=args.inputchannels,
         input_device_index=args.input,
         input=True)
 stream_output = audio.open(
         format=pyaudio.paInt16,
-        rate=44100, 
+        rate=args.output_sr, 
         channels=args.outputchannels,
         output_device_index=args.output,
         output=True)
 stream_loopback = audio.open(
         format=pyaudio.paInt16,
-        rate=44100, 
+        rate=args.loopback_sr, 
         channels=args.loopbackchannels,
         output_device_index=args.loopback,
         output=True) if args.loopback != -1 else None
@@ -131,7 +135,7 @@ while True:
     with torch.no_grad():
         with torch.cuda.amp.autocast(enabled=args.fp16):
             # Downsample
-            data = torchaudio.functional.resample(data, 44100, 22050)
+            data = torchaudio.functional.resample(data, args.input_sr, 16000)
             data = torchaudio.functional.gain(data, args.input_gain)
 
             amp = compute_amplitude(data)
@@ -161,15 +165,17 @@ while True:
             # gain
             data = torchaudio.functional.gain(data, args.gain)
             # Upsample
-            data = torchaudio.functional.resample(data, 22050, 44100)
+            data = torchaudio.functional.resample(data, 16000, args.output_sr)
+
             data = data[0]
 
     data = data.cpu().numpy()
     data = (data) * 32768
     data = data
     data = data.astype(np.int16)
-    s = (chunk * buffer_size) // 2 - (chunk // 2)
-    e = (chunk * buffer_size) - s
+    center = buffer_size * chunk // 2
+    s = center - chunk // 2
+    e = center + chunk // 2
     data = data[s:e]
     data = data.tobytes()
     stream_output.write(data)

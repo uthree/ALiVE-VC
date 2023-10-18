@@ -35,6 +35,7 @@ parser.add_argument('-lib', '--voice-library-path', default="NONE")
 parser.add_argument('-noise', '--noise-gain', default=1.0, type=float)
 parser.add_argument('--breath', default=False, type=bool)
 parser.add_argument('-wpe', '--world-pitch-estimation', default=False)
+parser.add_argument('-norm', '--normalize', default=False, type=bool)
 
 args = parser.parse_args()
 
@@ -56,7 +57,7 @@ if args.target != "NONE":
     print("loading target...")
     wf, sr = torchaudio.load(args.target)
     wf = wf.to(device)
-    wf = torchaudio.functional.resample(wf, sr, 22050)
+    wf = torchaudio.functional.resample(wf, sr, 16000)
     wf = wf / wf.abs().max()
     wf = wf[:1]
     tgt = CE(spectrogram(wf)).detach()
@@ -73,7 +74,7 @@ paths = glob.glob(os.path.join(args.inputs, "*"))
 for i, path in enumerate(paths):
     wf, sr = torchaudio.load(path)
     wf = wf.to('cpu')
-    wf = torchaudio.functional.resample(wf, sr, 22050)
+    wf = torchaudio.functional.resample(wf, sr, 16000)
     wf = wf / wf.abs().max()
     wf = wf.mean(dim=0, keepdim=True)
     total_length = wf.shape[1]
@@ -123,8 +124,9 @@ for i, path in enumerate(paths):
 
             result.append(chunk.to('cpu'))
         wf = torch.cat(result, dim=1)[:, :total_length]
-        wf = torchaudio.functional.resample(wf, 22050, sr)
+        wf = torchaudio.functional.resample(wf, 16000, sr)
         wf = torchaudio.functional.gain(wf, args.gain)
     wf = wf.cpu().detach()
-    wf = wf / wf.abs().max()
+    if args.normalize:
+        wf = wf / wf.abs().max()
     torchaudio.save(os.path.join("./outputs/", f"{os.path.splitext(os.path.basename(path))[0]}.wav"), src=wf, sample_rate=sr)
