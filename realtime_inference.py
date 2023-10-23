@@ -3,6 +3,7 @@ import pyaudio
 import numpy as np
 import torch
 import torchaudio
+import torch.nn.functional as F
 from module.spectrogram import spectrogram
 from module.common import match_features, compute_f0, compute_amplitude
 from module.decoder import Decoder
@@ -132,9 +133,10 @@ while True:
     data = data.astype(np.float32) / 32768 # convert -1 to 1
     data = torch.from_numpy(data).to(device)
     data = torch.unsqueeze(data, 0)
-    with torch.no_grad():
+    with torch.inference_mode():
         with torch.cuda.amp.autocast(enabled=args.fp16):
             # Downsample
+            original_length = data.shape[1]
             data = torchaudio.functional.resample(data, args.input_sr, 16000)
             data = torchaudio.functional.gain(data, args.input_gain)
 
