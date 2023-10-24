@@ -27,9 +27,9 @@ parser.add_argument('-disp', '--discriminator-path', default="discriminator.pt")
 parser.add_argument('-cep', '--content-encoder-path', default="content_encoder.pt")
 parser.add_argument('-pep', '--pitch-estimator-path', default="pitch_estimator.pt")
 parser.add_argument('-d', '--device', default='cpu')
-parser.add_argument('-e', '--epoch', default=100, type=int)
+parser.add_argument('-e', '--epoch', default=1000, type=int)
 parser.add_argument('-b', '--batch-size', default=4, type=int)
-parser.add_argument('-lr', '--learning-rate', default=2e-4, type=float)
+parser.add_argument('-lr', '--learning-rate', default=1e-4, type=float)
 parser.add_argument('-len', '--length', default=16384, type=int)
 parser.add_argument('-m', '--max-data', default=-1, type=int)
 parser.add_argument('-fp16', default=False, type=bool)
@@ -40,6 +40,7 @@ parser.add_argument('--content', default=1, type=float)
 parser.add_argument('-wpe', '--world-pitch-estimation', default=False, type=bool)
 parser.add_argument('--max-step', default=-1, type=int)
 parser.add_argument('-lib', '--voice-library-path', default="NONE")
+parser.add_argument('-fd', '--freeze-discriminator', default=False)
 
 args = parser.parse_args()
 
@@ -119,6 +120,9 @@ if VL_mode:
 
 def log_mel(x):
     return torch.log(torch.clamp_min(mel(x), 1e-5))
+
+if args.freeze_discriminator:
+    inference_mode(D)
 
 for epoch in range(args.epoch):
     tqdm.write(f"Epoch #{epoch}")

@@ -7,7 +7,7 @@ def spectrogram(x):
     x = x.to(torch.float)
     x = torch.stft(x, 1024, 256, 1024, center=True, return_complex=True).abs()
     x = x.to(dtype)
-    return x[:, :, 1:]
+    return x[:, :, :-1]
 
 
 def plot_spectrogram(x, save_path="./spectrogram.png", log=True):

@@ -31,7 +31,7 @@ parser.add_argument('-dep', '--decoder-path', default="decoder.pt")
 parser.add_argument('-cep', '--content-encoder-path', default="content_encoder.pt")
 parser.add_argument('-pep', '--pitch-estimator-path', default="pitch_estimator.pt")
 parser.add_argument('-b', '--buffersize', default=8, type=int)
-parser.add_argument('-c', '--chunk', default=4096, type=int)
+parser.add_argument('-c', '--chunk', default=1024, type=int)
 parser.add_argument('-ic', '--inputchannels', default=1, type=int)
 parser.add_argument('-oc', '--outputchannels', default=1, type=int)
 parser.add_argument('-lc', '--loopbackchannels', default=1, type=int)
@@ -39,13 +39,13 @@ parser.add_argument('-f0', '--f0-rate', default=1, type=float)
 parser.add_argument('-p', '--pitch', default=0, type=float)
 parser.add_argument('-t', '--target', default='NONE')
 parser.add_argument('-k', default=4, type=int)
-parser.add_argument('-a', '--alpha', default=0.1, type=float)
+parser.add_argument('-a', '--alpha', default=0.0, type=float)
 parser.add_argument('-fp16', default=False, type=bool)
 parser.add_argument('-lib', '--voice-library-path', default="NONE")
 parser.add_argument('-wpe', '--world-pitch-estimation', default=False, type=bool)
-parser.add_argument('-isr', '--input-sr', default=44100, type=int)
-parser.add_argument('-osr', '--output-sr', default=44100, type=int)
-parser.add_argument('-lsr', '--loopback-sr', default=44100, type=int)
+parser.add_argument('-isr', '--input-sr', default=16000, type=int)
+parser.add_argument('-osr', '--output-sr', default=16000, type=int)
+parser.add_argument('-lsr', '--loopback-sr', default=16000, type=int)
 
 
 
@@ -121,7 +121,7 @@ print("")
 bar = tqdm()
 
 while True:
-    data = stream_input.read(chunk, exception_on_overflow=False)
+    data = stream_input.read(chunk)
     data = np.frombuffer(data, dtype=np.int16)
     input_buff.append(data)
     if len(input_buff) > buffer_size:
@@ -136,7 +136,6 @@ while True:
     with torch.inference_mode():
         with torch.cuda.amp.autocast(enabled=args.fp16):
             # Downsample
-            original_length = data.shape[1]
             data = torchaudio.functional.resample(data, args.input_sr, 16000)
             data = torchaudio.functional.gain(data, args.input_gain)
 
@@ -161,7 +160,7 @@ while True:
             content = match_features(content, tgt, k=args.k, alpha=args.alpha)
             data = Dec.decode(content, f0, amp)
             
-            pitch_center = (args.buffersize * args.chunk) // 2048
+            pitch_center = 0
             bar.set_description(desc=f"F0: {f0[0, 0, pitch_center] / args.f0_rate:.4f} Hz")
 
             # gain

@@ -139,5 +139,5 @@ def compute_f0(wf, sample_rate=16000, segment_size=256, f0_min=20, f0_max=4096):
 def compute_amplitude(x, segment_size=256):
     x = x.abs()
     x = x.unsqueeze(1)
-    x = F.interpolate(x.abs(), x.shape[2] // segment_size, mode='linear')
+    x = F.avg_pool1d(x, segment_size, segment_size)
     return x

@@ -52,7 +52,7 @@ class Decoder(nn.Module):
                  n_fft=1024,
                  num_layers=10):
         super().__init__()
-        self.pad = nn.ReflectionPad1d([1, 0])
+        self.pad = nn.ReflectionPad1d([0, 1])
         self.f0_encoder = F0Encoder(condition_channels)
         self.amp_encoder = AmplitudeEncoder(condition_channels)
         self.gaussian_encoder = GaussianEncoder(input_channels, internal_channels)
@@ -104,8 +104,8 @@ class Decoder(nn.Module):
 
 
     def decode(self, x, f0, amp, noise_gain=1):
-        noise = torch.randn(x.shape[0], self.internal_channels,  x.shape[2], device=x.device) * noise_gain
-        x, _, _ = self.forward(x, f0, amp)
+        noise = torch.randn(x.shape[0], self.internal_channels, x.shape[2], device=x.device) * noise_gain
+        x, _, _ = self.forward(x, f0, amp, noise)
         return x
 
 
