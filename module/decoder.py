@@ -113,11 +113,10 @@ class Decoder(nn.Module):
             hubert_channels=768,
             input_channels=256,
             upsample_initial_channels=256,
-            speaker_embedding_channels=128,
-            deconv_strides=[8, 8, 4],
-            deconv_kernel_sizes=[16, 16, 8],
-            resblock_kernel_sizes=[3, 5, 7],
-            resblock_dilation_rates=[[1, 2], [2, 6], [3, 12]]
+            deconv_strides=[8, 8, 2, 2],
+            deconv_kernel_sizes=[16, 16, 4, 4],
+            resblock_kernel_sizes=[3, 7, 11],
+            resblock_dilation_rates=[[1, 3, 5], [1, 3, 5], [1, 3, 5]]
             ):
         super().__init__()
         self.num_kernels = len(resblock_kernel_sizes)
