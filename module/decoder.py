@@ -1,8 +1,9 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.nn.utils import weight_norm, remove_weight_norm
 
-from module.common import AdaptiveConvNeXt1d, AdaptiveChannelNorm
+LRELU_SLOPE = 0.1
 
 
 class F0Encoder(nn.Module):
@@ -43,96 +44,141 @@ class GaussianEncoder(nn.Module):
         return x.chunk(2, dim=1)
 
 
+def init_weights(m, mean=0.0, std=0.01):
+    classname = m.__class__.__name__
+    if classname.find("Conv") != -1:
+        m.weight.data.normal_(mean, std)
+
+
+def get_padding(kernel_size, dilation=1):
+    return int(((kernel_size -1)*dilation)/2)
+
+
+class ResBlock(nn.Module):
+    def __init__(self, channels, kernel_size=3, dilation=[1, 3, 5]):
+        super().__init__()
+        self.convs1 = nn.ModuleList([])
+        self.convs2 = nn.ModuleList([])
+
+        for d in dilation:
+            self.convs1.append(
+                    weight_norm(nn.Conv1d(channels, channels, kernel_size, 1, dilation=d,
+                        padding=get_padding(kernel_size, d))))
+            self.convs2.append(
+                    weight_norm(nn.Conv1d(channels, channels, kernel_size, 1, dilation=d,
+                        padding=get_padding(kernel_size, d))))
+
+        self.convs1.apply(init_weights)
+        self.convs2.apply(init_weights)
+
+    def forward(self, x):
+        for c1, c2 in zip(self.convs1, self.convs2):
+            xt = F.leaky_relu(x, LRELU_SLOPE)
+            xt = c1(xt)
+            xt = F.leaky_relu(xt, LRELU_SLOPE)
+            xt = c2(xt)
+            x = xt + x
+        return x
+
+    def remove_weight_norm(self):
+        for c1, c2 in zip(self.convs1, self.convs2):
+            remove_weight_norm(c1)
+            remove_weight_norm(c2)
+
+
+class MRF(nn.Module):
+    def __init__(self,
+            channels,
+            kernel_sizes=[3, 7, 11],
+            dilation_rates=[[1, 3, 5], [1, 3, 5], [1, 3, 5]]):
+        super().__init__()
+        self.blocks = nn.ModuleList([])
+        for k, d in zip(kernel_sizes, dilation_rates):
+            self.blocks.append(
+                    ResBlock(channels, k, d))
+
+    def forward(self, x):
+        out = 0
+        for block in self.blocks:
+            out += block(x)
+        return out
+
+    def remove_weight_norm(self):
+        for block in self.blocks:
+            remove_weight_norm(block)
+
+
 class Decoder(nn.Module):
     def __init__(self,
-                 input_channels=768,
-                 internal_channels=512,
-                 hidden_channels=1536,
-                 condition_channels=512,
-                 n_fft=1024,
-                 num_layers=10):
+            hubert_channels=768,
+            input_channels=256,
+            upsample_initial_channels=256,
+            speaker_embedding_channels=128,
+            deconv_strides=[8, 8, 4],
+            deconv_kernel_sizes=[16, 16, 8],
+            resblock_kernel_sizes=[3, 5, 7],
+            resblock_dilation_rates=[[1, 2], [2, 6], [3, 12]]
+            ):
         super().__init__()
-        self.pad = nn.ReflectionPad1d([0, 1])
-        self.f0_encoder = F0Encoder(condition_channels)
-        self.amp_encoder = AmplitudeEncoder(condition_channels)
-        self.gaussian_encoder = GaussianEncoder(input_channels, internal_channels)
+        self.num_kernels = len(resblock_kernel_sizes)
+        self.pre = nn.Conv1d(input_channels, upsample_initial_channels, 7, 1, 3)
+        self.f0_enc = F0Encoder(input_channels)
+        self.amp_enc = AmplitudeEncoder(input_channels)
+        self.gaussian_enc = GaussianEncoder(hubert_channels, input_channels)
 
-        self.input_layer = nn.Conv1d(internal_channels, internal_channels, 1)
-        self.mid_layers = nn.ModuleList([
-            AdaptiveConvNeXt1d(internal_channels, hidden_channels, condition_channels, scale=1/num_layers)
-            for _ in range(num_layers)])
-        self.last_norm = AdaptiveChannelNorm(internal_channels, condition_channels)
-        self.output_layer = nn.Conv1d(internal_channels, n_fft+2, 1)
+        self.ups = nn.ModuleList([])
+        for i, (s, k) in enumerate(zip(deconv_strides, deconv_kernel_sizes)):
+            self.ups.append(
+                    weight_norm(
+                        nn.ConvTranspose1d(
+                            upsample_initial_channels//(2**i),
+                            upsample_initial_channels//(2**(i+1)),
+                            k, s, (k-s)//2)))
 
-        self.n_fft = n_fft
-        self.internal_channels = internal_channels
+        self.MRFs = nn.ModuleList([])
+        for i in range(len(self.ups)):
+            c = upsample_initial_channels//(2**(i+1))
+            self.MRFs.append(MRF(c, resblock_kernel_sizes, resblock_dilation_rates))
 
-    def forward(self, x, f0, amplitude, noise=None):
-        mu, sigma = self.gaussian_encoder(x)
-        amp = self.amp_encoder(amplitude)
-        f0 = self.f0_encoder(f0)
-        
+        self.post = nn.Conv1d(c, 1, 7, 1, 3)
+        self.ups.apply(init_weights)
+
+    def forward(self, x, f0, amp, noise=None):
+        f0 = self.f0_enc(f0)
+        amp = self.amp_enc(amp)
+        mu, sigma = self.gaussian_enc(x)
         if noise == None:
-            x = mu + torch.exp(sigma) * torch.randn_like(sigma)
-        else:
-            x = mu + torch.exp(sigma) * noise
+            noise = torch.randn_like(sigma)
+        x = mu + torch.exp(sigma) * noise
 
-        condition = f0 + amp
-
-        condition = self.pad(condition)
-        x = self.pad(x)
-
-        x = self.input_layer(x)
-        for layer in self.mid_layers:
-            x = layer(x, condition)
-        x = self.last_norm(x, condition)
-        x = self.output_layer(x)
-
-        dtype = x.dtype
-        x = x.to(torch.float)
-
-        mag, phase = x.chunk(2, dim=1)
-        
-        mag = torch.exp(mag.clamp_max(6.0))
-        phase = (torch.cos(phase) + 1j * torch.sin(phase))
-        s = mag * phase
-        x = torch.istft(s, 1024, 256)
-
-        x = x.to(dtype)
-
+        x = self.pre(x) + f0 + amp
+        for up, MRF in zip(self.ups, self.MRFs):
+            x = F.leaky_relu(x, LRELU_SLOPE)
+            x = up(x)
+            x = MRF(x) / self.num_kernels
+        x = F.leaky_relu(x)
+        x = self.post(x)
+        x = torch.tanh(x)
+        x = x.squeeze(1)
         return x, mu, sigma
 
 
     def decode(self, x, f0, amp, noise_gain=1):
-        noise = torch.randn(x.shape[0], self.internal_channels, x.shape[2], device=x.device) * noise_gain
+        noise = torch.randn(x.shape[0], 256, x.shape[2], device=x.device) * noise_gain
         x, _, _ = self.forward(x, f0, amp, noise)
         return x
 
 
-class DecoderOnnxWrapper(nn.Module):
+    def remove_weight_norm(self):
+        remove_weight_norm(self.pre)
+        remove_weight_norm(self.post)
+        for up in self.ups:
+            remove_weight_norm(up)
+        for MRF in self.MRFs:
+            remove_weight_norm(MRF)
+
+
+class DecoderONNXWrapper(nn.Module):
     def __init__(self, decoder):
-        super().__init__()
         self.decoder = decoder
-
-    def forward(self, x, f0, amplitude, noise):
-        mu, sigma = self.decoder.gaussian_encoder(x)
-        amp = self.decoder.amp_encoder(amplitude)
-        f0 = self.decoder.f0_encoder(f0)
-        
-        x = mu + torch.exp(sigma) * noise
-
-        condition = f0 + amp
-
-        condition = self.decoder.pad(condition)
-        x = self.decoder.pad(x)
-
-        x = self.decoder.input_layer(x)
-        for layer in self.decoder.mid_layers:
-            x = layer(x, condition)
-        x = self.decoder.last_norm(x, condition)
-        x = self.decoder.output_layer(x)
-
-        mag, phase = x.chunk(2, dim=1)
-
-        return mag, phase
-
+        super().__init__()
