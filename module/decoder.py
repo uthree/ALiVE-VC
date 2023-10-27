@@ -32,7 +32,7 @@ class Decoder(nn.Module):
                  input_channels=768,
                  channels=512,
                  hidden_channels=1536,
-                 num_layers=8,
+                 num_layers=10,
                  n_fft=1024,
                  hop_length=256):
         super().__init__()
