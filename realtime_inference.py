@@ -158,7 +158,7 @@ while True:
             f0[torch.logical_or(f0.isnan(), f0.isinf())] = 0
 
             content = match_features(content, tgt, k=args.k, alpha=args.alpha)
-            data = Dec.decode(content, f0, amp)
+            data = Dec(content, f0, amp)
             
             pitch_center = 0
             bar.set_description(desc=f"F0: {f0[0, 0, pitch_center] / args.f0_rate:.4f} Hz")

@@ -108,6 +108,11 @@ SchedulerG = torch.optim.lr_scheduler.CosineAnnealingLR(OptG, 5000)
 SchedulerD = torch.optim.lr_scheduler.CosineAnnealingLR(OptD, 5000)
 
 mel = torchaudio.transforms.MelSpectrogram(16000, n_fft=1024, n_mels=80).to(device)
+def log_mel(x):
+    x = mel(x)
+    x = torch.log(x + 1e-5)
+    return x
+
 
 step_count = 0
 
@@ -143,21 +148,20 @@ for epoch in range(args.epoch):
             amp = compute_amplitude(wave)
 
             if VL_mode:
-                wave_recon, mu, sigma = dec(VL.match(cut_center(content)), cut_center(f0), cut_center(amp))
+                wave_recon = dec(VL.match(cut_center(content)), cut_center(f0), cut_center(amp))
             else:
-                wave_recon, mu, sigma = dec(match_features(cut_center(content), content), cut_center(f0), cut_center(amp))
+                wave_recon = dec(match_features(cut_center(content), content), cut_center(f0), cut_center(amp))
             logits = D.logits(wave_recon)
             
-            loss_mel = (mel(wave_recon) - mel(cut_center_wav(wave))).abs().mean()
+            loss_mel = (log_mel(wave_recon) - log_mel(cut_center_wav(wave))).abs().mean()
             loss_feat = D.feat_loss(wave_recon, cut_center_wav(wave))
-            loss_kl = (-1 - sigma + torch.exp(sigma)).mean() + (mu ** 2).mean()
             loss_con = (cut_center(content) - ce(spectrogram(wave_recon))).abs().mean()
 
             loss_adv = 0
             for logit in logits:
                 loss_adv += (logit ** 2).mean()
             
-            loss_g = loss_mel * args.mel + loss_feat * args.feature_matching + loss_con * args.content + loss_adv + loss_kl * 0.2
+            loss_g = loss_mel * args.mel + loss_feat * args.feature_matching + loss_con * args.content + loss_adv
         scaler.scale(loss_g).backward()
         scaler.step(OptG)
         if VL_mode:
@@ -183,7 +187,7 @@ for epoch in range(args.epoch):
 
         step_count += 1
         
-        tqdm.write(f"Step {step_count}, D: {loss_d.item():.4f}, Adv.: {loss_adv.item():.4f}, Mel.: {loss_mel.item():.4f}, Feat.: {loss_feat.item():.4f}, Con.: {loss_con.item():.4f}, K.L.: {loss_kl.item():.4f}")
+        tqdm.write(f"Step {step_count}, D: {loss_d.item():.4f}, Adv.: {loss_adv.item():.4f}, Mel.: {loss_mel.item():.4f}, Feat.: {loss_feat.item():.4f}, Con.: {loss_con.item():.4f}")
 
         N = wave.shape[0]
         bar.update(N)
