@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.utils import weight_norm, remove_weight_norm
-from module.common import AdaptiveConvNeXt1d
+from module.common import AdaptiveConvNeXt1d, AdaptiveChannelNorm
 
 class F0Encoder(nn.Module):
     def __init__(self, output_dim=512):
@@ -44,6 +44,7 @@ class Decoder(nn.Module):
         for _ in range(num_layers):
             self.mid_layers.append(
                     AdaptiveConvNeXt1d(channels, hidden_channels, channels, scale=1/num_layers))
+        self.last_norm = AdaptiveChannelNorm(channels, channels)
         self.output_layer = nn.Conv1d(channels, n_fft+2, 1)
         self.n_fft = n_fft
         self.hop_length = hop_length
@@ -55,6 +56,7 @@ class Decoder(nn.Module):
         x = self.input_layer(x)
         for layer in self.mid_layers:
             x = layer(x, condition)
+        x = self.last_norm(x)
         x = self.output_layer(x)
         return x.chunk(2, dim=1)
 
