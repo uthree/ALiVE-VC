@@ -56,7 +56,7 @@ class Decoder(nn.Module):
         x = self.input_layer(x)
         for layer in self.mid_layers:
             x = layer(x, condition)
-        x = self.last_norm(x)
+        x = self.last_norm(x, condition)
         x = self.output_layer(x)
         return x.chunk(2, dim=1)
 
