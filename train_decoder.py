@@ -107,9 +107,6 @@ mel = torchaudio.transforms.MelSpectrogram(16000, n_fft=1024, n_mels=80).to(devi
 
 step_count = 0
 
-def log_mel(x):
-    return torch.log(torch.clamp_min(mel(x), 1e-5))
-
 for epoch in range(args.epoch):
     tqdm.write(f"Epoch #{epoch}")
     bar = tqdm(total=len(ds))
@@ -134,7 +131,7 @@ for epoch in range(args.epoch):
                                    cut_center(f0) * (1.0 + torch.rand(1, 1, device=device)), cut_center(amp))
             logits = D.logits(wave_fake) + D.logits(wave_recon)
             
-            loss_mel = (log_mel(wave_recon) - log_mel(cut_center_wav(wave))).abs().mean()
+            loss_mel = (mel(wave_recon) - mel(cut_center_wav(wave))).abs().mean()
             loss_feat = D.feat_loss(wave_recon, cut_center_wav(wave))
             loss_kl = (-1 - sigma + torch.exp(sigma)).mean() + (mu ** 2).mean()
             loss_con = (cut_center(content) - ce(spectrogram(wave_recon))).abs().mean()

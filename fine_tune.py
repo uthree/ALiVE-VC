@@ -118,9 +118,6 @@ if VL_mode:
     VL.load_state_dict(torch.load(args.voice_library_path, map_location=device))
     OptVL = optim.AdamW(VL.parameters(), lr=args.learning_rate)
 
-def log_mel(x):
-    return torch.log(torch.clamp_min(mel(x), 1e-5))
-
 if args.freeze_discriminator:
     inference_mode(D)
 
@@ -151,7 +148,7 @@ for epoch in range(args.epoch):
                 wave_recon, mu, sigma = dec(match_features(cut_center(content), content), cut_center(f0), cut_center(amp))
             logits = D.logits(wave_recon)
             
-            loss_mel = (log_mel(wave_recon) - log_mel(cut_center_wav(wave))).abs().mean()
+            loss_mel = (mel(wave_recon) - mel(cut_center_wav(wave))).abs().mean()
             loss_feat = D.feat_loss(wave_recon, cut_center_wav(wave))
             loss_kl = (-1 - sigma + torch.exp(sigma)).mean() + (mu ** 2).mean()
             loss_con = (cut_center(content) - ce(spectrogram(wave_recon))).abs().mean()
