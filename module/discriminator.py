@@ -117,30 +117,34 @@ class MultiPeriodicDiscriminator(nn.Module):
         return feats
 
 
-class SpectralDiscriminator(nn.Module):
-    def __init__(self, n_fft=1024):
+class ResolutionDiscriminator(nn.Module):
+    def __init__(self, n_fft=1024, channels=64):
         super().__init__()
         self.n_fft = n_fft
         self.hop_length = n_fft // 4
         self.fft_bin = n_fft // 2 + 1
         
         self.layers = nn.ModuleList([
-            weight_norm(nn.Conv1d(self.fft_bin, 64, 5, 2, get_padding(5))),
-            weight_norm(nn.Conv1d(64, 64, 5, 2, get_padding(5))),
-            weight_norm(nn.Conv1d(64, 64, 5, 2, get_padding(5))),
-            weight_norm(nn.Conv1d(64, 64, 5, 2, get_padding(5))),
-            weight_norm(nn.Conv1d(64, 1, 5, 2, get_padding(5))),
+                weight_norm(nn.Conv2d(1, channels, kernel_size=(7, 5), stride=(2, 2), padding=(3, 2))),
+                weight_norm(nn.Conv2d(channels, channels, kernel_size=(5, 3), stride=(2, 1), padding=(2, 1))),
+                weight_norm(nn.Conv2d(channels, channels, kernel_size=(5, 3), stride=(2, 2), padding=(2, 1))),
+                weight_norm(nn.Conv2d(channels, channels, kernel_size=3, stride=(2, 1), padding=1)),
+                weight_norm(nn.Conv2d(channels, channels, kernel_size=3, stride=(2, 2), padding=1)),
             ])
+        self.conv_post = weight_norm(nn.Conv2d(channels, 1, (3, 3), padding=(1, 1)))
 
     def forward(self, x):
         x = torch.stft(x, self.n_fft, self.hop_length, return_complex=True).abs()
+        x = x.unsqueeze(1)
         for layer in self.layers:
             x = layer(x)
             x = F.leaky_relu(x, LRELU_SLOPE)
+        x = self.conv_post(x)
         return x
 
     def feat(self, x):
         x = torch.stft(x, self.n_fft, self.hop_length, return_complex=True).abs()
+        x = x.unsqueeze(1)
         feats = []
         for layer in self.layers:
             x = layer(x)
@@ -149,13 +153,13 @@ class SpectralDiscriminator(nn.Module):
         return x
 
 
-class MultiSpectralDiscriminator(nn.Module):
+class MultiResolutionDiscriminator(nn.Module):
     def __init__(self, n_ffts=[512, 1024, 2048]):
         super().__init__()
         self.sub_discriminators = nn.ModuleList([])
         for n_fft in n_ffts:
             self.sub_discriminators.append(
-                    SpectralDiscriminator(n_fft))
+                    ResolutionDiscriminator(n_fft))
 
     def forward(self, x):
         logits = []
@@ -174,15 +178,15 @@ class Discriminator(nn.Module):
     def __init__(self):
         super().__init__()
         self.MPD = MultiPeriodicDiscriminator()
-        self.MSD = MultiSpectralDiscriminator()
+        self.MRD = MultiResolutionDiscriminator()
     
     def logits(self, x):
-        return self.MPD(x) + self.MSD(x)
+        return self.MPD(x) + self.MRD(x)
     
     def feat_loss(self, fake, real):
         with torch.no_grad():
-            real_feat = self.MPD.feat(real) + self.MSD.feat(real)
-        fake_feat = self.MPD.feat(fake) + self.MSD.feat(fake)
+            real_feat = self.MPD.feat(real) + self.MRD.feat(real)
+        fake_feat = self.MPD.feat(fake) + self.MRD.feat(fake)
         loss = 0
         for r, f in zip(real_feat, fake_feat):
             loss = loss + F.l1_loss(f, r)
