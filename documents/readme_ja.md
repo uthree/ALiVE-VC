@@ -41,11 +41,23 @@ python3 train_pitch_estimator.py path/to/jvs/corpus -d cuda
 python3 train_decoder.py path/to/jvs/corpus -d cuda
 ```
 
-8. 特定の話者でファインチューニング  
+8. 特定の話者でファインチューニング
+
 ```sh
+# まず、辞書となる音声ライブラリを生成
+python3 generate_voice_library.py path/to/target/voices -lib voice_library.pt
+# 学習を実行。
 python3 fine_tune.py path/to/target/voices -d cuda
 ```
 
+9. 推論  
+`inputs`という名前のフォルダを個のリポジトリの直下に作成し、そこに変換したい音声ファイルを入れる。  
+そのあと推論を実行。  
+`-p <音階>` でピッチシフトを行える。
+```sh
+python3 inference.py -lib voice_library.py
+```  
+すると`outputs`という名前のフォルダが自動生成されるので、その中のファイルを再生し、結果を確認する。
 
 ## 参考文献
 - [Vocos](https://arxiv.org/abs/2306.00814)
