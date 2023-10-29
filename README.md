@@ -1,5 +1,5 @@
 # ZVC
-A lightweight vector-search based voice conversion system  
+A lightweight vector explore voice conversion system  
 (This repository is in the experimental stage. Contents are subject to change without notice)
 
 [日本語](https://github.com/uthree/zvc/blob/main/documents/readme_ja.md)
