@@ -43,12 +43,10 @@ python3 train_decoder.py path/to/jvs/corpus -d cuda
 
 8. 特定の話者でファインチューニング  
 ```sh
-python3 path/to/target/voices -d cuda
+python3 fine_tune.py path/to/target/voices -d cuda
 ```
 
 
 ## 参考文献
 - [Vocos](https://arxiv.org/abs/2306.00814)
 - [kNN-VC](https://arxiv.org/abs/2305.18975)
-- [DDPM](https://arxiv.org/abs/2006.11239)
-- [DDIM](https://arxiv.org/abs/2010.02502)

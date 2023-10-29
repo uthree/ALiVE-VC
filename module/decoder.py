@@ -69,7 +69,7 @@ class Decoder(nn.Module):
         mag = torch.exp(mag)
         phase = torch.cos(phase) + 1j * torch.sin(phase)
         s = mag * phase
-        return torch.istft(s, self.n_fft, )
+        return torch.istft(s, self.n_fft, hop_length=self.hop_length)
 
 
 class DecoderONNXWrapper(nn.Module):
