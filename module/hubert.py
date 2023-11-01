@@ -1,6 +1,7 @@
 import torch
 import torch.nn.functional as F
 from transformers import WavLMModel
+import torchaudio
 
 def load_hubert(device=torch.device('cpu')):
     print("Loading WavLM...")
@@ -11,10 +12,10 @@ def load_hubert(device=torch.device('cpu')):
     return model
 
 
-def extract_hubert_feature(wavlm, wave, segment_size=256):
+def extract_hubert_feature(wavlm, wave, segment_size=1024):
     length = wave.shape[1] // segment_size
     hidden_states = wavlm(wave, output_hidden_states=True).hidden_states
-    feature = hidden_states[9]
+    feature = hidden_states[4]
     feature = feature.transpose(1, 2)
     feature = F.interpolate(feature, length, mode='linear')
     return feature

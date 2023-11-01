@@ -21,7 +21,7 @@ parser.add_argument('dataset')
 parser.add_argument('-mp', '--model-path', default="content_encoder.pt")
 parser.add_argument('-d', '--device', default='cpu')
 parser.add_argument('-e', '--epoch', default=1000, type=int)
-parser.add_argument('-b', '--batch-size', default=16, type=int)
+parser.add_argument('-b', '--batch-size', default=4, type=int)
 parser.add_argument('-lr', '--learning-rate', default=1e-4, type=float)
 parser.add_argument('-len', '--length', default=65536, type=int)
 parser.add_argument('-m', '--max-data', default=-1, type=int)
@@ -69,7 +69,8 @@ for epoch in range(args.epoch):
         # Train G.
         optimizer.zero_grad()
         with torch.cuda.amp.autocast(enabled=args.fp16):
-            hubert_feature = extract_hubert_feature(hubert, wave)
+            wave_16k = torchaudio.functional.resample(wave, 44100, 16000)
+            hubert_feature = extract_hubert_feature(hubert, wave_16k)
             output = model(spec)
             hubert_feature = F.interpolate(hubert_feature, output.shape[2], mode='linear')
             loss = (output - hubert_feature).abs().mean()

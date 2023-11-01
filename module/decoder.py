@@ -33,8 +33,8 @@ class Decoder(nn.Module):
                  channels=512,
                  hidden_channels=1536,
                  num_layers=10,
-                 n_fft=1024,
-                 hop_length=256):
+                 n_fft=4096,
+                 hop_length=1024):
         super().__init__()
         self.input_layer = nn.Conv1d(input_channels, channels, 1,)
         self.f0_enc = F0Encoder(channels)

@@ -19,7 +19,7 @@ class PeriodicDiscriminator(nn.Module):
                  stride=3,
                  num_stages=4,
                  groups = [],
-                 max_channels=1024
+                 max_channels=256
                  ):
         super().__init__()
         self.input_layer = weight_norm(
@@ -85,7 +85,7 @@ class PeriodicDiscriminator(nn.Module):
 
 class MultiPeriodicDiscriminator(nn.Module):
     def __init__(self,
-                 periods=[2, 3, 5, 7, 11],
+                 periods=[2, 3, 5, 7, 11, 13, 17, 19, 23],
                  groups=[1, 4, 16, 16, 16],
                  channels=64,
                  kernel_size=5,
@@ -136,6 +136,7 @@ class ResolutionDiscriminator(nn.Module):
     def forward(self, x):
         x = torch.stft(x, self.n_fft, self.hop_length, return_complex=True).abs()
         x = x.unsqueeze(1)
+        x = F.avg_pool2d(x, (4, 1))
         for layer in self.layers:
             x = layer(x)
             x = F.leaky_relu(x, LRELU_SLOPE)
@@ -145,6 +146,7 @@ class ResolutionDiscriminator(nn.Module):
     def feat(self, x):
         x = torch.stft(x, self.n_fft, self.hop_length, return_complex=True).abs()
         x = x.unsqueeze(1)
+        x = F.avg_pool2d(x, (4, 1))
         feats = []
         for layer in self.layers:
             x = layer(x)
@@ -154,7 +156,7 @@ class ResolutionDiscriminator(nn.Module):
 
 
 class MultiResolutionDiscriminator(nn.Module):
-    def __init__(self, n_ffts=[512, 1024, 2048]):
+    def __init__(self, n_ffts=[2048, 4096, 8192]):
         super().__init__()
         self.sub_discriminators = nn.ModuleList([])
         for n_fft in n_ffts:

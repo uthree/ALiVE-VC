@@ -7,7 +7,7 @@ from module.common import compute_f0
 
 
 class WaveFileDirectory(torch.utils.data.Dataset):
-    def __init__(self, source_dir_paths=[], length=65536, max_files=-1, sampling_rate=16000):
+    def __init__(self, source_dir_paths=[], length=65536, max_files=-1, sampling_rate=44100):
         super().__init__()
         print("Loading Data")
         self.path_list = []
@@ -42,7 +42,7 @@ class WaveFileDirectory(torch.utils.data.Dataset):
 
 
 class WaveFileDirectoryWithF0(torch.utils.data.Dataset):
-    def __init__(self, source_dir_paths=[], length=65536, max_files=-1, sampling_rate=16000):
+    def __init__(self, source_dir_paths=[], length=65536, max_files=-1, sampling_rate=44100):
         super().__init__()
         print("Loading Data")
         self.path_list = []
