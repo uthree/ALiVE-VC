@@ -115,7 +115,7 @@ def compute_f0(wf, sample_rate=32000, segment_size=320, f0_min=20, f0_max=4096):
         return pitchs
 
 
-def compute_amplitude(x, segment_size=256):
+def compute_amplitude(x, segment_size=320):
     x = x.abs()
     x = x.unsqueeze(1)
     x = F.avg_pool1d(x, segment_size, segment_size)

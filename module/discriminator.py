@@ -85,7 +85,7 @@ class PeriodicDiscriminator(nn.Module):
 
 class MultiPeriodicDiscriminator(nn.Module):
     def __init__(self,
-                 periods=[2, 3, 5, 7, 11, 13, 17, 19, 23],
+                 periods=[2, 3, 5, 7, 11, 17, 23, 37],
                  groups=[1, 4, 4, 4, 4],
                  channels=64,
                  kernel_size=5,
