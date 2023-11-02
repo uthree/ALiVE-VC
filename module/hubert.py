@@ -11,7 +11,7 @@ def load_hubert(device=torch.device('cpu')):
     return model
 
 
-def extract_hubert_feature(wavlm, wave, segment_size=256):
+def extract_hubert_feature(wavlm, wave, segment_size=320):
     length = wave.shape[1] // segment_size
     hidden_states = wavlm(wave, output_hidden_states=True).hidden_states
     feature = hidden_states[4]

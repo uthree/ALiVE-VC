@@ -57,7 +57,7 @@ if args.target != "NONE":
     print("loading target...")
     wf, sr = torchaudio.load(args.target)
     wf = wf.to(device)
-    wf = torchaudio.functional.resample(wf, sr, 16000)
+    wf = torchaudio.functional.resample(wf, sr, 32000)
     wf = wf / wf.abs().max()
     wf = wf[:1]
     tgt = CE(spectrogram(wf)).detach()
@@ -74,7 +74,7 @@ paths = glob.glob(os.path.join(args.inputs, "*"))
 for i, path in enumerate(paths):
     wf, sr = torchaudio.load(path)
     wf = wf.to('cpu')
-    wf = torchaudio.functional.resample(wf, sr, 16000)
+    wf = torchaudio.functional.resample(wf, sr, 32000)
     wf = wf / wf.abs().max()
     wf = wf.mean(dim=0, keepdim=True)
     total_length = wf.shape[1]
@@ -124,7 +124,7 @@ for i, path in enumerate(paths):
 
             result.append(chunk.to('cpu'))
         wf = torch.cat(result, dim=1)[:, :total_length]
-        wf = torchaudio.functional.resample(wf, 16000, sr)
+        wf = torchaudio.functional.resample(wf, 32000, sr)
         wf = torchaudio.functional.gain(wf, args.gain)
     wf = wf.cpu().detach()
     if args.normalize:

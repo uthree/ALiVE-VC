@@ -69,7 +69,8 @@ for epoch in range(args.epoch):
         # Train G.
         optimizer.zero_grad()
         with torch.cuda.amp.autocast(enabled=args.fp16):
-            hubert_feature = extract_hubert_feature(hubert, wave)
+            wave_resampled = torchaudio.functional.resample(32000, 16000)
+            hubert_feature = extract_hubert_feature(hubert, wave_resampled)
             output = model(spec)
             hubert_feature = F.interpolate(hubert_feature, output.shape[2], mode='linear')
             loss = (output - hubert_feature).abs().mean()

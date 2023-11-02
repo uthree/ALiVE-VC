@@ -43,9 +43,9 @@ parser.add_argument('-a', '--alpha', default=0.0, type=float)
 parser.add_argument('-fp16', default=False, type=bool)
 parser.add_argument('-lib', '--voice-library-path', default="NONE")
 parser.add_argument('-wpe', '--world-pitch-estimation', default=False, type=bool)
-parser.add_argument('-isr', '--input-sr', default=16000, type=int)
-parser.add_argument('-osr', '--output-sr', default=16000, type=int)
-parser.add_argument('-lsr', '--loopback-sr', default=16000, type=int)
+parser.add_argument('-isr', '--input-sr', default=32000, type=int)
+parser.add_argument('-osr', '--output-sr', default=32000, type=int)
+parser.add_argument('-lsr', '--loopback-sr', default=32000, type=int)
 
 
 
