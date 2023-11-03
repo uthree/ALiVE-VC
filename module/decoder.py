@@ -102,8 +102,8 @@ class Decoder(nn.Module):
                  deconv_kernel_sizes=[20, 16],
                  resblock_kernel_sizes=[3, 7, 11],
                  resblock_dilation_rates=[[1, 3, 5], [1, 3, 5], [1, 3, 5]],
-                 n_fft=16,
-                 hop_length=4,
+                 n_fft=32,
+                 hop_length=8,
                  ):
         super().__init__()
         self.n_fft = n_fft

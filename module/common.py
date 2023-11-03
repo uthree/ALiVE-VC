@@ -95,7 +95,7 @@ def match_features(source, reference, k=4, alpha=0.0):
 
 
 
-def compute_f0(wf, sample_rate=32000, segment_size=320, f0_min=20, f0_max=4096):
+def compute_f0(wf, sample_rate=32000, segment_size=640, f0_min=20, f0_max=4096):
     if wf.ndim == 1:
         device = wf.device
         signal = wf.detach().cpu().numpy()
@@ -115,7 +115,7 @@ def compute_f0(wf, sample_rate=32000, segment_size=320, f0_min=20, f0_max=4096):
         return pitchs
 
 
-def compute_amplitude(x, segment_size=320):
+def compute_amplitude(x, segment_size=640):
     x = x.abs()
     x = x.unsqueeze(1)
     x = F.avg_pool1d(x, segment_size, segment_size)

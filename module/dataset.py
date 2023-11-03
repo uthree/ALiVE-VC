@@ -4,6 +4,7 @@ import glob
 from tqdm import tqdm
 import os
 from module.common import compute_f0
+import random
 
 
 class WaveFileDirectory(torch.utils.data.Dataset):
@@ -54,6 +55,7 @@ class WaveFileDirectoryWithF0(torch.utils.data.Dataset):
             for fmt in formats:
                 self.path_list += glob.glob(os.path.join(dir_path, f"**/*.{fmt}"), recursive=True)
         if max_files != -1:
+            self.patt_list = random.shuffle(self.path_list)
             self.path_list = self.path_list[:max_files]
         print("Chunking")
         for path in tqdm(self.path_list):
@@ -67,7 +69,8 @@ class WaveFileDirectoryWithF0(torch.utils.data.Dataset):
             for w in waves:
                 if w.shape[1] == length:
                     self.data.append(w[0])
-                    self.f0.append(compute_f0(w)[0])
+                    w_resampled = torchaudio.functional.resample(w, sampling_rate, 16000)
+                    self.f0.append(compute_f0(w_resampled, sample_rate=16000)[0])
         self.length = length
         print(f"Loaded total {len(self.data)} data.")
 

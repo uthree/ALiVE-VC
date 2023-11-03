@@ -70,11 +70,14 @@ for epoch in range(args.epoch):
         # Train G.
         optimizer.zero_grad()
         with torch.cuda.amp.autocast(enabled=args.fp16):
+            estimated_f0 = model(spec)
+            f0 = F.interpolate(f0, estimated_f0.shape[2], mode='linear')
+            estimated_f0 = estimated_f0.transpose(1, 2)
+            estimated_f0 = torch.flatten(estimated_f0, start_dim=0, end_dim=1)
             f0 = torch.floor(f0).to(torch.long)
             f0 = torch.flatten(f0.squeeze(1).transpose(0, 1),
                                start_dim=0, end_dim=1)
-            estimated_f0 = model(spec).transpose(1, 2)
-            estimated_f0 = torch.flatten(estimated_f0, start_dim=0, end_dim=1)
+
             loss = criterion(
                     estimated_f0,
                     f0)

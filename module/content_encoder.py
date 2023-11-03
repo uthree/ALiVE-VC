@@ -7,7 +7,7 @@ from module.common import ConvNeXt1d, ChannelNorm
 
 class ContentEncoder(nn.Module):
     def __init__(self,
-                 n_fft=1024,
+                 n_fft=2048,
                  internal_channels=512,
                  hidden_channels=1536,
                  output_channels=768,

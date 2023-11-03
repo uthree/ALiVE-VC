@@ -20,7 +20,7 @@ args = parser.parse_args()
 
 ds = WaveFileDirectory(
         [args.dataset],
-        length=10240,
+        length=20480,
         max_files=-1
         )
 
