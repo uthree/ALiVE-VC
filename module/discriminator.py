@@ -19,7 +19,7 @@ class PeriodicDiscriminator(nn.Module):
                  stride=3,
                  num_stages=4,
                  groups = [],
-                 max_channels=1024
+                 max_channels=256
                  ):
         super().__init__()
         self.input_layer = weight_norm(
@@ -85,8 +85,8 @@ class PeriodicDiscriminator(nn.Module):
 
 class MultiPeriodicDiscriminator(nn.Module):
     def __init__(self,
-                 periods=[2, 3, 5, 7, 11],
-                 groups=[1, 4, 16, 16, 16],
+                 periods=[2, 3, 5, 7, 11, 17, 23, 37],
+                 groups=[1, 4, 4, 4, 4],
                  channels=64,
                  kernel_size=5,
                  stride=3,
