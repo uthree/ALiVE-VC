@@ -30,7 +30,7 @@ parser.add_argument('-ig', '--input-gain', default=0.0, type=float)
 parser.add_argument('-dep', '--decoder-path', default="decoder.pt")
 parser.add_argument('-cep', '--content-encoder-path', default="content_encoder.pt")
 parser.add_argument('-pep', '--pitch-estimator-path', default="pitch_estimator.pt")
-parser.add_argument('-b', '--buffersize', default=8, type=int)
+parser.add_argument('-b', '--buffersize', default=4, type=int)
 parser.add_argument('-c', '--chunk', default=1024, type=int)
 parser.add_argument('-ic', '--inputchannels', default=1, type=int)
 parser.add_argument('-oc', '--outputchannels', default=1, type=int)
@@ -46,6 +46,7 @@ parser.add_argument('-wpe', '--world-pitch-estimation', default=False, type=bool
 parser.add_argument('-isr', '--input-sr', default=16000, type=int)
 parser.add_argument('-osr', '--output-sr', default=16000, type=int)
 parser.add_argument('-lsr', '--loopback-sr', default=16000, type=int)
+parser.add_argument('-ll', '--low-latency-mode', default=False, type=bool)
 
 
 
@@ -174,7 +175,10 @@ while True:
     data = (data) * 32768
     data = data
     data = data.astype(np.int16)
-    center = buffer_size * chunk // 2
+    if args.low_latency_mode:
+        center = buffer_size * chunk - chunk
+    else:
+        center = buffer_size * chunk // 2
     s = center - chunk // 2
     e = center + chunk // 2
     data = data[s:e]
