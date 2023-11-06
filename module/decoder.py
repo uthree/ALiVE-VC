@@ -72,7 +72,11 @@ class Decoder(nn.Module):
         return torch.istft(s, self.n_fft, hop_length=self.hop_length)
 
 
-class DecoderONNXWrapper(nn.Module):
+class DecoderOnnxWrapper(nn.Module):
     def __init__(self, decoder):
-        self.decoder = decoder
         super().__init__()
+        self.decoder = decoder
+
+    def forward(self, x, f0, amp):
+        mag, phase = self.decoder.mag_phase(x, f0, amp)
+        return mag, phase

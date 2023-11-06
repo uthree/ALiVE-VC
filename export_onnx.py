@@ -77,19 +77,17 @@ print("Exporting Decoder...")
 dummy_input = torch.randn(1, 768, 256)
 dummy_f0 = torch.randn(1, 1, 256)
 dummy_amp = torch.randn(1, 1, 256)
-noise = torch.randn(1, 512, 256)
 torch.onnx.export(
         Dec,
-        (dummy_input, dummy_f0, dummy_amp, noise),
+        (dummy_input, dummy_f0, dummy_amp),
         os.path.join(args.outputs, "decoder.onnx"),
         opset_version=15,
-        input_names=["input", "f0", "amplitude", "noise"],
+        input_names=["input", "f0", "amplitude"],
         output_names=["magnitude", "phase"],
         dynamic_axes={
             "input": {0: "barch_size", 2: "length"},
             "f0" : {0: "batch_size", 2: "length"},
             "amplitude": {0: "batch_size", 2: "length"},
-            "noise": {0: "batch_size", 2: "length"}
             })
 
 if VL is not None:

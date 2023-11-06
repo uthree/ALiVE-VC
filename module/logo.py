@@ -1,8 +1,14 @@
+logo_text = """
+           _      ___      ________  __      _______  
+     /\   | |    (_) \    / /  ____| \ \    / / ____| 
+    /  \  | |     _ \ \  / /| |__     \ \  / / |      
+   / /\ \ | |    | | \ \/ / |  __|     \ \/ /| |      
+  / ____ \| |____| |  \  /  | |____     \  / | |____  
+ /_/    \_\______|_|   \/   |______|     \/   \_____| 
+
+    A Lightweight Vector Explore Voice Conversion
+"""
+
 def print_logo():
-    print(" ________      _______  | ")
-    print("|___  /\ \    / / ____| | The voice conversion system")
-    print("   / /  \ \  / / |      | repository: https://github.com/uthree/zvc")
-    print("  / /    \ \/ /| |      | ")
-    print(" / /__    \  / | |____  | ")
-    print("/_____|    \/   \_____| | ")
-    print("")
+    print(logo_text)
+

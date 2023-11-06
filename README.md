@@ -1,4 +1,4 @@
-# ZVC
+# ALiVE-VC
 A lightweight vector explore voice conversion system  
 (This repository is in the experimental stage. Contents are subject to change without notice)
 
