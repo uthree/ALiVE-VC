@@ -1,4 +1,6 @@
 # ALiVE-VC
+![Logo](https://github.com/uthree/zvc/blob/main/documents/alive-vc-logo.png)
+
 A lightweight vector explore voice conversion system  
 (This repository is in the experimental stage. Contents are subject to change without notice)
 

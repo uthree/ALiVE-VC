@@ -1,4 +1,6 @@
 # ALiVE-VC
+![Logo](https://github.com/uthree/zvc/blob/main/documents/alive-vc-logo.png)
+
 軽量なベクトル検索ベースのAIボイスチェンジャ  
 (このリポジトリは実験段階です。内容は予告なく変更される場合があります。)
 
