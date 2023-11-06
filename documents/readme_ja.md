@@ -15,8 +15,8 @@
 ## 使い方 (フルスクラッチで訓練する場合)
 1. このリポジトリをクローン
 ```sh
-git clone https://github.com/uthree/zvc
-cd zvc
+git clone https://github.com/uthree/ALiVE-VC
+cd ALiVE-VC
 ```
 
 2. PyTorchを[ここ](https://pytorch.org)からインストール

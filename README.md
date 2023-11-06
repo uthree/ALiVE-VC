@@ -17,8 +17,8 @@ A lightweight vector explore voice conversion system
 ## Usage (train full-scratch)
 1. Clone this repository and move directory.
 ```sh
-git clone https://github.com/uthree/zvc
-cd zvc
+git clone https://github.com/uthree/ALiVE-VC
+cd ALiVE-VC
 ```
 
 2. Install  PyTorch from
