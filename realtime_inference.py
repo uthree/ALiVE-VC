@@ -162,7 +162,7 @@ while True:
             data = Dec(content, f0, amp)
             
             pitch_center = 0
-            bar.set_description(desc=f"Output F0: {f0[0, 0, pitch_center]} Hz")
+            bar.set_description(desc=f"Output F0: {f0[0, 0, pitch_center]:.0f} Hz")
 
             # gain
             data = torchaudio.functional.gain(data, args.gain)
