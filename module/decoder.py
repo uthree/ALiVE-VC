@@ -36,7 +36,7 @@ class Decoder(nn.Module):
                  n_fft=1024,
                  hop_length=256):
         super().__init__()
-        self.input_layer = nn.Conv1d(input_channels, channels, 1,)
+        self.input_layer = nn.Conv1d(input_channels, channels, 1)
         self.f0_enc = F0Encoder(channels)
         self.amp_enc = AmplitudeEncoder(channels)
         self.mid_layers = nn.ModuleList([])
