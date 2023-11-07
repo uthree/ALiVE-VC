@@ -130,7 +130,7 @@ for epoch in range(args.epoch):
     tqdm.write(f"Epoch #{epoch}")
     bar = tqdm(total=len(ds))
     for batch, wave in enumerate(dl):
-        wave = wave.to(device) * torch.rand(wave.shape[0], 1, device=device)
+        wave = wave.to(device) * torch.rand(wave.shape[0], 1, device=device) * 2
         spec = spectrogram(wave)
 
         # Train G.
