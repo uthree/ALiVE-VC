@@ -46,7 +46,7 @@ parser.add_argument('-wpe', '--world-pitch-estimation', default=False, type=bool
 parser.add_argument('-isr', '--input-sr', default=16000, type=int)
 parser.add_argument('-osr', '--output-sr', default=16000, type=int)
 parser.add_argument('-lsr', '--loopback-sr', default=16000, type=int)
-parser.add_argument('-ll', '--low-latency-mode', default=False, type=bool)
+parser.add_argument('-ll', '--low-latency-mode', default=True, type=bool)
 
 
 

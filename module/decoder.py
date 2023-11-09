@@ -40,7 +40,7 @@ class Decoder(nn.Module):
         self.f0_enc = F0Encoder(channels)
         self.amp_enc = AmplitudeEncoder(channels)
         self.mid_layers = nn.ModuleList([])
-        self.pad = nn.ReflectionPad1d([0, 1])
+        self.pad = nn.ReflectionPad1d([1, 0])
         for _ in range(num_layers):
             self.mid_layers.append(
                     AdaptiveConvNeXt1d(channels, hidden_channels, channels, scale=1/num_layers))
