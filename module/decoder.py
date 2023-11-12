@@ -49,14 +49,15 @@ class Decoder(nn.Module):
         self.n_fft = n_fft
         self.hop_length = hop_length
 
-    def mag_phase(self, x, f0, amp):
+    def mag_phase(self, x, f0, amp, last_norm=False):
         condition = self.f0_enc(f0) + self.amp_enc(amp)
         condition = self.pad(condition)
         x = self.pad(x)
         x = self.input_layer(x)
         for layer in self.mid_layers:
             x = layer(x, condition)
-        x = self.last_norm(x, condition)
+        if last_norm:
+            x = self.last_norm(x, condition)
         x = self.output_layer(x)
         return x.chunk(2, dim=1)
 
