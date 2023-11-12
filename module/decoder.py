@@ -44,20 +44,17 @@ class Decoder(nn.Module):
         for _ in range(num_layers):
             self.mid_layers.append(
                     AdaptiveConvNeXt1d(channels, hidden_channels, channels, scale=1/num_layers))
-        self.last_norm = AdaptiveChannelNorm(channels, channels)
         self.output_layer = nn.Conv1d(channels, n_fft+2, 1)
         self.n_fft = n_fft
         self.hop_length = hop_length
 
-    def mag_phase(self, x, f0, amp, last_norm=False):
+    def mag_phase(self, x, f0, amp):
         condition = self.f0_enc(f0) + self.amp_enc(amp)
         condition = self.pad(condition)
         x = self.pad(x)
         x = self.input_layer(x)
         for layer in self.mid_layers:
             x = layer(x, condition)
-        if last_norm:
-            x = self.last_norm(x, condition)
         x = self.output_layer(x)
         return x.chunk(2, dim=1)
 
