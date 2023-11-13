@@ -17,7 +17,7 @@ from teacher.f0_estimator import F0Estimator
 parser = argparse.ArgumentParser(description="train F0 estimator for teacher")
 
 parser.add_argument('dataset')
-parser.add_argument('-mp', '--model-path', default="t_pitch_estimator.pt")
+parser.add_argument('-mp', '--model-path', default="t_f0_estimator.pt")
 parser.add_argument('-d', '--device', default='cpu')
 parser.add_argument('-e', '--epoch', default=100, type=int)
 parser.add_argument('-b', '--batch-size', default=1, type=int)

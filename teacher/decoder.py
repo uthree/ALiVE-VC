@@ -76,7 +76,7 @@ class F0Encoder(nn.Module):
         super().__init__()
         self.c1 = nn.Conv1d(1, output_dim, 1, 1, 0)
         self.c2 = nn.Conv1d(output_dim, output_dim, 1, 1, 0)
-        self.c1.weight.data.normal_(0, 0.3)
+        self.c1.weight.data.normal_(0, 0.1)
 
     def forward(self, x):
         x = self.c1(x)
