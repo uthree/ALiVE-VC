@@ -45,7 +45,7 @@ wavlm = load_wavlm(device)
 def convert(wf, target_wave, pitch_shift=0, alpha=0, intonation=1, k=4):
     total_length = wf.shape[1]
     
-    wf = torch.cat([wf, torch.zeros(1, (args.chunk * 3))], dim=1)
+    wf = torch.cat([wf, torch.zeros(1, (args.chunk * 3), device=device)], dim=1)
 
     wf = wf.unsqueeze(1).unsqueeze(1)
     wf = F.pad(wf, (args.chunk, args.chunk, 0, 0))
@@ -84,7 +84,7 @@ def convert(wf, target_wave, pitch_shift=0, alpha=0, intonation=1, k=4):
             
             chunk = chunk[:, args.chunk:-args.chunk]
 
-            result.append(chunk.to('cpu'))
+            result.append(chunk)
         wf = torch.cat(result, dim=1)[:, :total_length]
         return wf
 
@@ -118,8 +118,10 @@ if not os.path.exists(dir_t):
 
 
 for i, (s, t) in tqdm(enumerate(zip(dl_i, dl_t))):
-    alpha = random.random()
+    t = t.to(device)
+    s = s.to(device)
+    alpha = random.random() * 0.5
     pitch_shift = random.randint(-12, 12)
     s_gen = convert(t, s, pitch_shift, alpha)
-    torchaudio.save(os.path.join(dir_s, f"{i}.wav"), src=s_gen, sample_rate=16000)
-    torchaudio.save(os.path.join(dir_t, f"{i}.wav"), src=t, sample_rate=16000)
+    torchaudio.save(os.path.join(dir_s, f"{i}.wav"), src=s_gen.to('cpu'), sample_rate=16000)
+    torchaudio.save(os.path.join(dir_t, f"{i}.wav"), src=t.to('cpu'), sample_rate=16000)
