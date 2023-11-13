@@ -86,8 +86,9 @@ for epoch in range(args.epoch):
     for batch, (src, tgt) in enumerate(dl):
         src = src.to(device)
         tgt = tgt.to(device)
+        src_f0 = PE.estimate(spectrogram(src))
         tgt_f0 = PE.estimate(spectrogram(tgt))
-        
+
         # Train G.
         OptG.zero_grad()
         with torch.cuda.amp.autocast(enabled=args.fp16):
@@ -100,12 +101,12 @@ for epoch in range(args.epoch):
             loss_mel = (log_mel(wave_fake) - log_mel(tgt)).abs().mean()
             loss_feat = D.feat_loss(wave_fake, tgt)
             
-            _, estimated_f0 = VC.encoder(tgt)
+            _, estimated_f0 = VC.encoder(src)
             estimated_f0 = estimated_f0.transpose(1, 2)
-            tgt_f0 = tgt_f0.transpose(1, 2)
+            src_f0 = src_f0.transpose(1, 2)
             estimated_f0 = torch.flatten(estimated_f0, 0, 1)
-            tgt_f0 = torch.flatten(tgt_f0, 0, 1).squeeze(1)
-            loss_f0 = CEL(estimated_f0, tgt_f0.to(torch.long))
+            src_f0 = torch.flatten(src_f0, 0, 1).squeeze(1)
+            loss_f0 = CEL(estimated_f0, src_f0.to(torch.long))
 
             loss_g = loss_adv + loss_mel * args.mel + loss_feat * args.feature_matching + loss_f0
 

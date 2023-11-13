@@ -101,6 +101,16 @@ class CausalConvNeXt1d(nn.Module):
         return x + res
 
 
+class DilatedCausalConv1d(nn.Module):
+    def __init__(self, in_channels, out_channels, kernel_size=5, dilation=1):
+        super().__init__()
+        self.pad = nn.ReflectionPad1d(((kernel_size-1)*dilation, 0))
+        self.conv = nn.Conv1d(in_channels, out_channels, kernel_size, 1, 0, dilation=dilation)
+
+    def forwrad(self, x):
+        x = self.pad(x)
+        x = self.conv(x)
+        return x
 
 # helper functions
 def match_features(source, reference, k=4, alpha=0.0):
