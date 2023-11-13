@@ -2,7 +2,7 @@ import torch
 import torch.nn.functional as F
 from transformers import WavLMModel
 
-def load_hubert(device=torch.device('cpu')):
+def load_wavlm(device=torch.device('cpu')):
     print("Loading WavLM...")
     model = WavLMModel.from_pretrained("microsoft/wavlm-base-plus").to(device)
     model.eval()
@@ -11,7 +11,7 @@ def load_hubert(device=torch.device('cpu')):
     return model
 
 
-def extract_hubert_feature(wavlm, wave, segment_size=256):
+def extract_wavlm_feature(wavlm, wave, segment_size=256):
     length = wave.shape[1] // segment_size
     hidden_states = wavlm(wave, output_hidden_states=True).hidden_states
     feature = hidden_states[4]

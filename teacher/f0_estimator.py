@@ -5,7 +5,7 @@ import torch.nn.functional as F
 from module.common import ConvNeXt1d, ChannelNorm
 
 
-class PitchEstimator(nn.Module):
+class F0Estimator(nn.Module):
     def __init__(self,
                  n_fft=1024,
                  internal_channels=256,
@@ -34,10 +34,4 @@ class PitchEstimator(nn.Module):
             return f0
 
 
-class PitchEstimatorOnnxWraper(nn.Module):
-    def __init__(self, pe):
-        super().__init__()
-        self.pe = pe
 
-    def forward(self, x):
-        return self.pe.estimate(x)
