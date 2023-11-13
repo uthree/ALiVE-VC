@@ -57,10 +57,11 @@ class ConvNeXt1d(nn.Module):
         return x + res
 
 
-class AdaptiveConvNeXt1d(nn.Module):
+class AdaptiveCausalConvNeXt1d(nn.Module):
     def __init__(self, channels=512, hidden_channels=1536, condition_emb=512, kernel_size=7, scale=1):
         super().__init__()
-        self.dw_conv = nn.Conv1d(channels, channels, kernel_size, padding=kernel_size//2, groups=channels, padding_mode='reflect')
+        self.pad = nn.ReflectionPad1d((kernel_size-1, 0))
+        self.dw_conv = nn.Conv1d(channels, channels, kernel_size, padding=0, groups=channels)
         self.norm = AdaptiveChannelNorm(channels, condition_emb)
         self.pw_conv1 = nn.Conv1d(channels, hidden_channels, 1)
         self.pw_conv2 = nn.Conv1d(hidden_channels, channels, 1)
@@ -68,6 +69,7 @@ class AdaptiveConvNeXt1d(nn.Module):
 
     def forward(self, x, p):
         res = x
+        x = self.pad(x)
         x = self.dw_conv(x)
         x = self.norm(x, p)
         x = self.pw_conv1(x)
@@ -75,6 +77,29 @@ class AdaptiveConvNeXt1d(nn.Module):
         x = self.pw_conv2(x)
         x = x * self.scale
         return x + res
+
+
+class CausalConvNeXt1d(nn.Module):
+    def __init__(self, channels=512, hidden_channels=1536, kernel_size=7, scale=1):
+        super().__init__()
+        self.pad = nn.ReflectionPad1d((kernel_size-1, 0))
+        self.dw_conv = nn.Conv1d(channels, channels, kernel_size, padding=0, groups=channels)
+        self.norm = ChannelNorm(channels)
+        self.pw_conv1 = nn.Conv1d(channels, hidden_channels, 1)
+        self.pw_conv2 = nn.Conv1d(hidden_channels, channels, 1)
+        self.scale = nn.Parameter(torch.ones(1, channels, 1) * scale)
+
+    def forward(self, x):
+        res = x
+        x = self.pad(x)
+        x = self.dw_conv(x)
+        x = self.norm(x)
+        x = self.pw_conv1(x)
+        x = F.gelu(x)
+        x = self.pw_conv2(x)
+        x = x * self.scale
+        return x + res
+
 
 
 # helper functions

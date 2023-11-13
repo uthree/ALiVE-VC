@@ -78,3 +78,29 @@ class WaveFileDirectoryWithF0(torch.utils.data.Dataset):
         return len(self.data)
 
 
+class ParallelDataset(torch.utils.data.Dataset):
+    def __init__(self, dir_path='./parallel'):
+        super().__init__()
+        print("Loading Data")
+        self.src_waves = []
+        self.tgt_waves = []
+        s_dir = os.path.join(dir_path, "src")
+        t_dir = os.path.join(dir_path, "tgt")
+        n = 0
+        while True:
+            path_s = os.path.join(s_dir, f"{n}.wav")
+            path_t = os.path.join(t_dir, f"{n}.wav")
+            if not (os.path.exists(path_s) and os.path.exists(path_t)):
+                break
+            wave_s, _ = torchaudio.load(path_s)
+            wave_t, _ = torchaudio.load(path_t)
+            self.src_waves.append(wave_s.mean(dim=0))
+            self.tgt_waves.append(wave_t.mean(dim=0))
+            n += 1
+        print("Complete!")
+
+    def __getitem__(self, index):
+        return self.src_waves[index], self.tgt_waves[index]
+
+    def __len__(self):
+        return len(self.src_waves)
