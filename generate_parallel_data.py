@@ -33,15 +33,6 @@ parser.add_argument('-m', '--max-data', default=-1, type=int)
 parser.add_argument('-l', '--length', default=65536, type=int)
 args = parser.parse_args()
 
-device = torch.device(args.device)
-
-PE = F0Estimator().to(device)
-Dec = Decoder().to(device)
-PE.load_state_dict(torch.load(args.f0_estimator_path, map_location=device))
-Dec.load_state_dict(torch.load(args.decoder_path, map_location=device))
-wavlm = load_wavlm(device)
-
-
 def convert(wf, target_wave, pitch_shift=0, alpha=0, intonation=1, k=4):
     total_length = wf.shape[1]
     
@@ -87,6 +78,15 @@ def convert(wf, target_wave, pitch_shift=0, alpha=0, intonation=1, k=4):
             result.append(chunk)
         wf = torch.cat(result, dim=1)[:, :total_length]
         return wf
+
+device = torch.device(args.device)
+
+PE = F0Estimator().to(device)
+Dec = Decoder().to(device)
+PE.load_state_dict(torch.load(args.f0_estimator_path, map_location=device))
+Dec.load_state_dict(torch.load(args.decoder_path, map_location=device))
+wavlm = load_wavlm(device)
+
 
 ds_i = WaveFileDirectory(
         [args.inputs],
