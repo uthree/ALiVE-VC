@@ -26,16 +26,18 @@ class Decoder(nn.Module):
             internal_channels=512,
             hidden_channels=1536,
             segment_size=256,
-            num_layers=6,
+            n_fft=1024,
+            num_layers=8,
             ):
         super().__init__()
         self.input_layer = nn.Conv1d(content_dim, internal_channels, 1, 1, 0)
         self.f0_enc = F0Encoder(internal_channels)
         self.mid_layers = nn.ModuleList([
             AdaptiveCausalConvNeXt1d(internal_channels, hidden_channels, internal_channels, scale=1/num_layers) for _ in range(num_layers)])
-        self.output_layer = nn.Conv1d(internal_channels, segment_size+2, 1, 1, 0)
+        self.output_layer = nn.Conv1d(internal_channels, n_fft+2, 1, 1, 0)
         self.segment_size = segment_size
         self.pad = nn.ReflectionPad1d([1, 0])
+        self.n_fft = n_fft
 
     def mag_phase(self, con, f0):
         x = self.input_layer(con)
@@ -56,6 +58,6 @@ class Decoder(nn.Module):
         mag = torch.exp(mag)
         phase = torch.cos(phase) + 1j * torch.sin(phase)
         s = mag * phase
-        return torch.istft(s, self.segment_size, self.segment_size)
+        return torch.istft(s, self.n_fft, self.segment_size)
 
         
