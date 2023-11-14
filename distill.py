@@ -15,6 +15,7 @@ from teacher.f0_estimator import F0Estimator
 from student.discriminator import Discriminator
 from student.model import VoiceConvertor
 from module.dataset import ParallelDataset
+from module.wavlm import load_wavlm, extract_wavlm_feature
 
 parser = argparse.ArgumentParser(description="train student convertor")
 
@@ -31,6 +32,7 @@ parser.add_argument('--feature-matching', default=2, type=float)
 parser.add_argument('--mel', default=45, type=float)
 parser.add_argument('--matching', default=1, type=float)
 parser.add_argument('--f0', default=10, type=float)
+parser.add_argument('--con', default=10)
 
 args = parser.parse_args()
 
@@ -73,6 +75,7 @@ SchedulerG = torch.optim.lr_scheduler.CosineAnnealingLR(OptG, 5000)
 SchedulerD = torch.optim.lr_scheduler.CosineAnnealingLR(OptD, 5000)
 
 mel = torchaudio.transforms.MelSpectrogram(16000, n_fft=1024, n_mels=80).to(device)
+wavlm = load_wavlm(device)
 
 def cut_center(x):
     length = x.shape[2]
@@ -109,9 +112,13 @@ for epoch in range(args.epoch):
         OptG.zero_grad()
         with torch.cuda.amp.autocast(enabled=args.fp16):
             con, _ = VC.encoder(src)
-            con_tgt, _ = VC.encoder(tgt)
-            con_matched = VC.vector_matcher.match(con_tgt, alpha=0)
+            wavlm_features = extract_wavlm_feature(wavlm, src)
+            loss_con = (wavlm_features - con).abs().mean()
 
+            with torch.no_grad():
+                con_tgt, _ = VC.encoder(tgt)
+
+            con_matched = VC.vector_matcher.match(con_tgt, alpha=0)
             loss_matcher = (con_matched - con_tgt).abs().mean()
 
             wave_fake = VC.decoder(con, tgt_f0)
@@ -128,7 +135,7 @@ for epoch in range(args.epoch):
             src_f0 = torch.flatten(src_f0, 0, 1).squeeze(1)
             loss_f0 = CEL(estimated_f0, src_f0.to(torch.long))
 
-            loss_g = loss_adv + loss_mel * args.mel + loss_feat * args.feature_matching + loss_f0 * args.f0 + loss_matcher * args.matching
+            loss_g = loss_adv + loss_mel * args.mel + loss_feat * args.feature_matching + loss_f0 * args.f0 + loss_matcher * args.matching + loss_con * args.con
 
         scaler.scale(loss_g).backward()
         scaler.step(OptG)
@@ -153,7 +160,7 @@ for epoch in range(args.epoch):
 
         step_count += 1
         
-        tqdm.write(f"Step {step_count}, D: {loss_d.item():.4f}, Adv.: {loss_adv.item():.4f}, Mel.: {loss_mel.item():.4f}, Feat.: {loss_feat.item():.4f}, F0: {loss_f0.item():.4f}, V.M.: {loss_matcher.item():.4f}")
+        tqdm.write(f"Step {step_count}, D: {loss_d.item():.4f}, Adv.: {loss_adv.item():.4f}, Mel.: {loss_mel.item():.4f}, Feat.: {loss_feat.item():.4f}, F0: {loss_f0.item():.4f}, V.M.: {loss_matcher.item():.4f}, Con.: {loss_con.item():.4f}")
 
         bar.update(N)
 

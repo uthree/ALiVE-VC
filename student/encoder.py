@@ -12,7 +12,7 @@ class Encoder(nn.Module):
             internal_channels=512,
             hidden_channels=1536,
             num_layers=4,
-            output_dim=256,
+            output_dim=768,
             max_f0=4096
             ):
         super().__init__()

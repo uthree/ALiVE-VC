@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 class VectorMatcher(nn.Module):
-    def __init__(self, num_tokens=1024, dim=256):
+    def __init__(self, num_tokens=512, dim=768):
         super().__init__()
         self.tokens = nn.Parameter(torch.randn(1, dim, num_tokens))
         self.dim = dim

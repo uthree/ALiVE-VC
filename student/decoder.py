@@ -22,7 +22,7 @@ class F0Encoder(nn.Module):
 class Decoder(nn.Module):
     def __init__(
             self,
-            content_dim=256,
+            content_dim=768,
             internal_channels=512,
             hidden_channels=1536,
             segment_size=256,
