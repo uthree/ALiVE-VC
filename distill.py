@@ -112,7 +112,7 @@ for epoch in range(args.epoch):
             con_tgt, _ = VC.encoder(tgt)
             con_matched = VC.vector_matcher.match(con_tgt, alpha=0)
 
-            loss_matcher = (con_matched - con).abs().mean()
+            loss_matcher = (con_matched - con_tgt).abs().mean()
 
             wave_fake = VC.decoder(con, tgt_f0)
             wave_recon = VC.decoder(con_tgt, tgt_f0)
