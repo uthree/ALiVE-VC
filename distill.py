@@ -29,7 +29,7 @@ parser.add_argument('-lr', '--learning-rate', default=1e-4, type=float)
 parser.add_argument('-fp16', default=False, type=bool)
 parser.add_argument('--feature-matching', default=2, type=float)
 parser.add_argument('--mel', default=45, type=float)
-parser.add_argument('--matching', default=10, type=float)
+parser.add_argument('--matching', default=1, type=float)
 parser.add_argument('--f0', default=10, type=float)
 
 args = parser.parse_args()
