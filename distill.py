@@ -115,15 +115,11 @@ for epoch in range(args.epoch):
             loss_matcher = (con_matched - con_tgt).abs().mean()
 
             wave_fake = VC.decoder(con, tgt_f0)
-            wave_recon = VC.decoder(con_tgt, tgt_f0)
             loss_adv = 0
             for logit in D.logits(cut_center_wave(wave_fake)):
                 loss_adv += (logit ** 2).mean()
-            for logint in D.logits(cut_center_wave(wave_recon)):
-                loss_adv += (logit ** 2).mean()
-            loss_mel = (log_mel(wave_fake) - log_mel(tgt)).abs().mean() + (log_mel(wave_recon) - log_mel(tgt)).abs().mean() 
-            loss_feat = D.feat_loss(cut_center_wave(wave_fake), cut_center_wave(tgt)) +\
-                    D.feat_loss(cut_center_wave(wave_recon), cut_center_wave(tgt)) 
+            loss_mel = (log_mel(wave_fake) - log_mel(tgt)).abs().mean()
+            loss_feat = D.feat_loss(cut_center_wave(wave_fake), cut_center_wave(tgt))
 
             _, estimated_f0 = VC.encoder(src)
             estimated_f0 = estimated_f0.transpose(1, 2)
