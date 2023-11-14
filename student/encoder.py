@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from module.common import CausalConvNeXt1d
+from module.common import ConvNeXt1d
 
 class Encoder(nn.Module):
     def __init__(
@@ -18,7 +18,7 @@ class Encoder(nn.Module):
         super().__init__()
         self.input_layer = nn.Conv1d(n_fft//2+1, internal_channels, 1, 1, 0)
         self.mid_layers = nn.Sequential(*[
-                CausalConvNeXt1d(internal_channels, hidden_channels, scale=1/num_layers)
+                ConvNeXt1d(internal_channels, hidden_channels, scale=1/num_layers)
             ])
         self.to_f0 = nn.Conv1d(internal_channels, max_f0, 1, 1, 0)
         self.to_con = nn.Conv1d(internal_channels, output_dim, 1, 1, 0)

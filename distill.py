@@ -29,7 +29,8 @@ parser.add_argument('-lr', '--learning-rate', default=1e-4, type=float)
 parser.add_argument('-fp16', default=False, type=bool)
 parser.add_argument('--feature-matching', default=2, type=float)
 parser.add_argument('--mel', default=45, type=float)
-parser.add_argument('--content', default=1, type=float)
+parser.add_argument('--matching', default=10, type=float)
+parser.add_argument('--f0', default=10, type=float)
 
 args = parser.parse_args()
 
@@ -108,15 +109,22 @@ for epoch in range(args.epoch):
         OptG.zero_grad()
         with torch.cuda.amp.autocast(enabled=args.fp16):
             con, _ = VC.encoder(src)
-            con = VC.vector_matcher.match(con)
+            con_tgt, _ = VC.encoder(tgt)
+            con_matched = VC.vector_matcher.match(con_tgt, alpha=0)
+
+            loss_matcher = (con_matched - con).abs().mean()
 
             wave_fake = VC.decoder(con, tgt_f0)
+            wave_recon = VC.decoder(con_tgt, tgt_f0)
             loss_adv = 0
             for logit in D.logits(cut_center_wave(wave_fake)):
                 loss_adv += (logit ** 2).mean()
-            loss_mel = (log_mel(wave_fake) - log_mel(tgt)).abs().mean()
-            loss_feat = D.feat_loss(cut_center_wave(wave_fake), cut_center_wave(tgt))
-            
+            for logint in D.logits(cut_center_wave(wave_recon)):
+                loss_adv += (logit ** 2).mean()
+            loss_mel = (log_mel(wave_fake) - log_mel(tgt)).abs().mean() + (log_mel(wave_recon) - log_mel(tgt)).abs().mean() 
+            loss_feat = D.feat_loss(cut_center_wave(wave_fake), cut_center_wave(tgt)) +\
+                    D.feat_loss(cut_center_wave(wave_recon), cut_center_wave(tgt)) 
+
             _, estimated_f0 = VC.encoder(src)
             estimated_f0 = estimated_f0.transpose(1, 2)
             src_f0 = src_f0.transpose(1, 2)
@@ -124,7 +132,7 @@ for epoch in range(args.epoch):
             src_f0 = torch.flatten(src_f0, 0, 1).squeeze(1)
             loss_f0 = CEL(estimated_f0, src_f0.to(torch.long))
 
-            loss_g = loss_adv + loss_mel * args.mel + loss_feat * args.feature_matching + loss_f0
+            loss_g = loss_adv + loss_mel * args.mel + loss_feat * args.feature_matching + loss_f0 * args.f0 + loss_matcher * args.matching
 
         scaler.scale(loss_g).backward()
         scaler.step(OptG)
@@ -149,7 +157,7 @@ for epoch in range(args.epoch):
 
         step_count += 1
         
-        tqdm.write(f"Step {step_count}, D: {loss_d.item():.4f}, Adv.: {loss_adv.item():.4f}, Mel.: {loss_mel.item():.4f}, Feat.: {loss_feat.item():.4f}, F0: {loss_f0.item():.4f}")
+        tqdm.write(f"Step {step_count}, D: {loss_d.item():.4f}, Adv.: {loss_adv.item():.4f}, Mel.: {loss_mel.item():.4f}, Feat.: {loss_feat.item():.4f}, F0: {loss_f0.item():.4f}, V.M.: {loss_matcher.item():.4f}")
 
         bar.update(N)
 

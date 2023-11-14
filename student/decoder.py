@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from module.common import AdaptiveCausalConvNeXt1d
+from module.common import AdaptiveConvNeXt1d
 
 
 class F0Encoder(nn.Module):
@@ -33,7 +33,7 @@ class Decoder(nn.Module):
         self.input_layer = nn.Conv1d(content_dim, internal_channels, 1, 1, 0)
         self.f0_enc = F0Encoder(internal_channels)
         self.mid_layers = nn.ModuleList([
-            AdaptiveCausalConvNeXt1d(internal_channels, hidden_channels, internal_channels, scale=1/num_layers) for _ in range(num_layers)])
+            AdaptiveConvNeXt1d(internal_channels, hidden_channels, internal_channels, scale=1/num_layers) for _ in range(num_layers)])
         self.output_layer = nn.Conv1d(internal_channels, n_fft+2, 1, 1, 0)
         self.segment_size = segment_size
         self.pad = nn.ReflectionPad1d([1, 0])
