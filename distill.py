@@ -94,6 +94,7 @@ for epoch in range(args.epoch):
         with torch.cuda.amp.autocast(enabled=args.fp16):
             con, _ = VC.encoder(src)
             con = VC.vector_matcher.match(con)
+
             wave_fake = VC.decoder(con, tgt_f0)
             loss_adv = 0
             for logit in D.logits(wave_fake):

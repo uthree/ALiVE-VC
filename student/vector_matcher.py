@@ -11,7 +11,7 @@ class VectorMatcher(nn.Module):
     def forward(self, source):
         return self.match(source)
 
-    def match(self, source, k=4, alpha=0.2):
+    def match(self, source, k=4, alpha=0.5):
         reference = self.tokens.expand(
                 source.shape[0],
                 self.dim,

@@ -17,7 +17,7 @@ parser.add_argument('-mp', '--model-path', default='./s_convertor.pt')
 parser.add_argument('-p', '--pitch', default=0, type=float)
 parser.add_argument('-t', '--target', default='NONE')
 parser.add_argument('-d', '--device', default='cpu')
-parser.add_argument('-a', '--alpha', default=0.0, type=float)
+parser.add_argument('-a', '--alpha', default=0.5, type=float)
 parser.add_argument('-c', '--chunk', default=65536, type=int)
 
 args = parser.parse_args()
