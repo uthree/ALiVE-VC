@@ -23,7 +23,7 @@ parser.add_argument('-noise', '--noise-gain', default=1.0, type=float)
 parser.add_argument('-wpe', '--world-pitch-estimation', default=False)
 parser.add_argument('-norm', '--normalize', default=False, type=bool)
 parser.add_argument('-m', '--max-data', default=-1, type=int)
-parser.add_argument('-l', '--length', default=65536, type=int)
+parser.add_argument('-l', '--length', default=131072, type=int)
 args = parser.parse_args()
 
 def convert(wf, target_wave, k=4):

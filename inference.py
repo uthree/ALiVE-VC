@@ -19,6 +19,7 @@ parser.add_argument('-t', '--target', default='NONE')
 parser.add_argument('-d', '--device', default='cpu')
 parser.add_argument('-a', '--alpha', default=0.5, type=float)
 parser.add_argument('-c', '--chunk', default=65536, type=int)
+parser.add_argument('-norm', '--normalize', default=True, type=bool)
 
 args = parser.parse_args()
 device = torch.device(args.device)
@@ -55,5 +56,7 @@ for i, path in enumerate(paths):
             result.append(chunk.to('cpu'))
         wf = torch.cat(result, dim=1)[:, :total_length]
         wf = torchaudio.functional.resample(wf, 16000, sr)
+        if args.normalize:
+            wf = wf / (wf.abs().max() + 1e-8)
     wf = wf.cpu().detach()
     torchaudio.save(os.path.join("./outputs/", f"{os.path.splitext(os.path.basename(path))[0]}.wav"), src=wf, sample_rate=sr)

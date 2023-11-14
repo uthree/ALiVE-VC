@@ -73,6 +73,18 @@ SchedulerD = torch.optim.lr_scheduler.CosineAnnealingLR(OptD, 5000)
 
 mel = torchaudio.transforms.MelSpectrogram(16000, n_fft=1024, n_mels=80).to(device)
 
+def cut_center(x):
+    length = x.shape[2]
+    center = length // 2
+    size = length // 8
+    return x[:, :, center-size:center+size]
+
+def cut_center_wave(x):
+    length = x.shape[1]
+    center = length // 2
+    size = length // 8
+    return x[:, center-size:center+size]
+
 def log_mel(x):
     return torch.log(mel(x) + 1e-6)
 
@@ -84,8 +96,11 @@ for epoch in range(args.epoch):
     tqdm.write(f"Epoch #{epoch}")
     bar = tqdm(total=len(ds))
     for batch, (src, tgt) in enumerate(dl):
-        src = src.to(device)
-        tgt = tgt.to(device)
+        N = src.shape[0]
+
+        amp = torch.rand(N, 1, device=device) * 2
+        src = src.to(device) * amp
+        tgt = tgt.to(device) * amp
         src_f0 = PE.estimate(spectrogram(src))
         tgt_f0 = PE.estimate(spectrogram(tgt))
 
@@ -97,10 +112,10 @@ for epoch in range(args.epoch):
 
             wave_fake = VC.decoder(con, tgt_f0)
             loss_adv = 0
-            for logit in D.logits(wave_fake):
+            for logit in D.logits(cut_center_wave(wave_fake)):
                 loss_adv += (logit ** 2).mean()
             loss_mel = (log_mel(wave_fake) - log_mel(tgt)).abs().mean()
-            loss_feat = D.feat_loss(wave_fake, tgt)
+            loss_feat = D.feat_loss(cut_center_wave(wave_fake), cut_center_wave(tgt))
             
             _, estimated_f0 = VC.encoder(src)
             estimated_f0 = estimated_f0.transpose(1, 2)
@@ -118,8 +133,8 @@ for epoch in range(args.epoch):
         OptD.zero_grad()
         wave_fake = wave_fake.detach()
         with torch.cuda.amp.autocast(enabled=args.fp16):
-            logits_fake = D.logits(wave_fake)
-            logits_real = D.logits(tgt)
+            logits_fake = D.logits(cut_center_wave(wave_fake))
+            logits_real = D.logits(cut_center_wave(tgt))
             loss_d = 0
             for logit in logits_real:
                 loss_d += (logit ** 2).mean()
@@ -136,7 +151,6 @@ for epoch in range(args.epoch):
         
         tqdm.write(f"Step {step_count}, D: {loss_d.item():.4f}, Adv.: {loss_adv.item():.4f}, Mel.: {loss_mel.item():.4f}, Feat.: {loss_feat.item():.4f}, F0: {loss_f0.item():.4f}")
 
-        N = src.shape[0]
         bar.update(N)
 
         if batch % 300 == 0:

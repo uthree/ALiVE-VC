@@ -12,7 +12,7 @@ class VoiceConvertor(nn.Module):
         self.encoder = Encoder()
         self.vector_matcher = VectorMatcher()
 
-    def convert(self, wave, pitch_shift=0, alpha=0.2):
+    def convert(self, wave, pitch_shift=0, alpha=0.5):
         con, f0 = self.encoder(wave)
         con = self.vector_matcher.match(con, k=4, alpha=alpha)
         f0 = f0.argmax(dim=1).to(torch.float).unsqueeze(1)
