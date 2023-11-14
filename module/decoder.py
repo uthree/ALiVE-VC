@@ -58,6 +58,24 @@ class Decoder(nn.Module):
         x = self.output_layer(x)
         return x.chunk(2, dim=1)
 
+
+    def mag_phase_sd(self, x, f0, amp, sd_pairs=[(9, 5), (5, 2)]):
+        condition = self.f0_enc(f0) + self.amp_enc(amp)
+        condition = self.pad(condition)
+        x = self.pad(x)
+        x = self.input_layer(x)
+        mid_outputs = []
+        for i, layer in enumerate(self.mid_layers):
+            x = layer(x, condition)
+            mid_outputs.append(x)
+        sd_loss = 0
+        for t, s in sd_pairs:
+            sd_loss += (mid_outputs[s] - mid_outputs[t].detach()).abs().mean()
+        x = self.output_layer(x)
+        mag, pahse = x.chunk(2, dim=1)
+        return mag, pahse, sd_loss
+
+
     def forward(self, x, f0, amp):
         dtype = x.dtype
         mag, phase = self.mag_phase(x, f0, amp)
@@ -68,6 +86,19 @@ class Decoder(nn.Module):
         phase = torch.cos(phase) + 1j * torch.sin(phase)
         s = mag * phase
         return torch.istft(s, self.n_fft, hop_length=self.hop_length)
+
+
+    def forward_sd(self, x, f0, amp):
+        dtype = x.dtype
+        mag, phase, sd_loss = self.mag_phase_sd(x, f0, amp)
+        mag = mag.to(torch.float)
+        phase = phase.to(torch.float)
+        mag = torch.clamp_max(mag, 6.0)
+        mag = torch.exp(mag)
+        phase = torch.cos(phase) + 1j * torch.sin(phase)
+        s = mag * phase
+        return torch.istft(s, self.n_fft, hop_length=self.hop_length), sd_loss
+
 
 
 class DecoderOnnxWrapper(nn.Module):

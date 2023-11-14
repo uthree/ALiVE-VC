@@ -40,6 +40,7 @@ parser.add_argument('--content', default=1, type=float)
 parser.add_argument('-wpe', '--world-pitch-estimation', default=False, type=bool)
 parser.add_argument('--max-step', default=-1, type=int)
 parser.add_argument('-lib', '--voice-library-path', default="NONE")
+parser.add_argument('-sd', '--self-distillation', default=1, type=float)
 parser.add_argument('-fd', '--freeze-discriminator', default=False)
 
 args = parser.parse_args()
@@ -148,9 +149,9 @@ for epoch in range(args.epoch):
             amp = compute_amplitude(wave)
 
             if VL_mode:
-                wave_recon = dec(VL.match(cut_center(content)), cut_center(f0), cut_center(amp))
+                wave_recon, loss_sd = dec.forward_sd(VL.match(cut_center(content)), cut_center(f0), cut_center(amp))
             else:
-                wave_recon = dec(match_features(cut_center(content), content), cut_center(f0), cut_center(amp))
+                wave_recon, loss_sd = dec.forward_sd(match_features(cut_center(content), content), cut_center(f0), cut_center(amp))
             logits = D.logits(wave_recon)
             
             loss_mel = (log_mel(wave_recon) - log_mel(cut_center_wav(wave))).abs().mean()
@@ -161,7 +162,7 @@ for epoch in range(args.epoch):
             for logit in logits:
                 loss_adv += (logit ** 2).mean()
             
-            loss_g = loss_mel * args.mel + loss_feat * args.feature_matching + loss_con * args.content + loss_adv
+            loss_g = loss_mel * args.mel + loss_feat * args.feature_matching + loss_con * args.content + loss_adv + loss_sd * args.self_distillation
         scaler.scale(loss_g).backward()
         scaler.step(OptG)
         if VL_mode:
@@ -187,7 +188,7 @@ for epoch in range(args.epoch):
 
         step_count += 1
         
-        tqdm.write(f"Step {step_count}, D: {loss_d.item():.4f}, Adv.: {loss_adv.item():.4f}, Mel.: {loss_mel.item():.4f}, Feat.: {loss_feat.item():.4f}, Con.: {loss_con.item():.4f}")
+        tqdm.write(f"Step {step_count}, D: {loss_d.item():.4f}, Adv.: {loss_adv.item():.4f}, Mel.: {loss_mel.item():.4f}, Feat.: {loss_feat.item():.4f}, Con.: {loss_con.item():.4f}, S.D.: {loss_sd.item():.4f}")
 
         N = wave.shape[0]
         bar.update(N)

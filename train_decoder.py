@@ -37,6 +37,7 @@ parser.add_argument('-gacc', '--gradient-accumulation', default=1, type=int)
 parser.add_argument('--feature-matching', default=2, type=float)
 parser.add_argument('--mel', default=45, type=float)
 parser.add_argument('--content', default=1, type=float)
+parser.add_argument('--self-distillation', default=1, type=float)
 parser.add_argument('-wpe', '--world-pitch-estimation', default=False, type=bool)
 
 args = parser.parse_args()
@@ -130,7 +131,7 @@ for epoch in range(args.epoch):
 
             amp = compute_amplitude(wave)
 
-            wave_recon = dec(match_features(cut_center(content), content), cut_center(f0), cut_center(amp))
+            wave_recon, loss_sd = dec.forward_sd(match_features(cut_center(content), content), cut_center(f0), cut_center(amp))
             wave_fake = dec(match_features(cut_center(content), content.roll(1, dims=0)),
                                    cut_center(f0) * (1.0 + torch.rand(1, 1, device=device)), cut_center(amp))
             logits = D.logits(wave_fake) + D.logits(wave_recon)
@@ -143,7 +144,7 @@ for epoch in range(args.epoch):
             for logit in logits:
                 loss_adv += (logit ** 2).mean()
             
-            loss_g = loss_mel * args.mel + loss_feat * args.feature_matching + loss_con * args.content + loss_adv
+            loss_g = loss_mel * args.mel + loss_feat * args.feature_matching + loss_con * args.content + loss_adv + loss_sd * args.self_distillation
         scaler.scale(loss_g).backward()
         scaler.step(OptG)
 
@@ -167,7 +168,7 @@ for epoch in range(args.epoch):
 
         step_count += 1
         
-        tqdm.write(f"Step {step_count}, D: {loss_d.item():.4f}, Adv.: {loss_adv.item():.4f}, Mel.: {loss_mel.item():.4f}, Feat.: {loss_feat.item():.4f}, Con.: {loss_con.item():.4f}")
+        tqdm.write(f"Step {step_count}, D: {loss_d.item():.4f}, Adv.: {loss_adv.item():.4f}, Mel.: {loss_mel.item():.4f}, Feat.: {loss_feat.item():.4f}, Con.: {loss_con.item():.4f}, S.D.: {loss_sd.item():.4f}")
 
         N = wave.shape[0]
         bar.update(N)
