@@ -59,7 +59,7 @@ class Decoder(nn.Module):
         return x.chunk(2, dim=1)
 
 
-    def mag_phase_sd(self, x, f0, amp, sd_pairs=[(9, 5), (5, 2)]):
+    def mag_phase_sd(self, x, f0, amp, sd_pairs=[(9, 7), (7, 5), (5, 3), (3, 1)]):
         condition = self.f0_enc(f0) + self.amp_enc(amp)
         condition = self.pad(condition)
         x = self.pad(x)
