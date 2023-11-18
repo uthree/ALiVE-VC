@@ -118,7 +118,7 @@ for i, path in enumerate(paths):
 
             feat = CE(spec)
             feat = match_features(feat, tgt, k=args.k, alpha=args.alpha)
-            chunk = Dec(feat, f0  * args.f0_rate, amp)
+            chunk = Dec.forward_without_t(feat, f0 * args.f0_rate, amp)
             
             chunk = chunk[:, args.chunk:-args.chunk]
 

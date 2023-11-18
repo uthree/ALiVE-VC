@@ -4,6 +4,7 @@ import glob
 from tqdm import tqdm
 import os
 from module.common import compute_f0
+import random
 
 
 class WaveFileDirectory(torch.utils.data.Dataset):
@@ -54,6 +55,7 @@ class WaveFileDirectoryWithF0(torch.utils.data.Dataset):
             for fmt in formats:
                 self.path_list += glob.glob(os.path.join(dir_path, f"**/*.{fmt}"), recursive=True)
         if max_files != -1:
+            random.shuffle(self.path_list)
             self.path_list = self.path_list[:max_files]
         print("Chunking")
         for path in tqdm(self.path_list):

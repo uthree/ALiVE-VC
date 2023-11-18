@@ -130,8 +130,8 @@ for epoch in range(args.epoch):
 
             amp = compute_amplitude(wave)
 
-            wave_recon = dec(match_features(cut_center(content), content), cut_center(f0), cut_center(amp))
-            wave_fake = dec(match_features(cut_center(content), content.roll(1, dims=0)),
+            wave_recon = dec.forward_without_t(match_features(cut_center(content), content), cut_center(f0), cut_center(amp))
+            wave_fake = dec.forward_without_t(match_features(cut_center(content), content.roll(1, dims=0)),
                                    cut_center(f0) * (1.0 + torch.rand(1, 1, device=device)), cut_center(amp))
             logits = D.logits(wave_fake) + D.logits(wave_recon)
             

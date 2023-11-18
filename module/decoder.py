@@ -2,43 +2,57 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.utils import weight_norm, remove_weight_norm
-from module.common import AdaptiveConvNeXt1d, AdaptiveChannelNorm
+from module.common import AdaptiveConvNeXt1d, AdaptiveChannelNorm, ConvNeXt1d
+import math
 
-class F0Encoder(nn.Module):
-    def __init__(self, output_dim=512):
+
+class SineGenerator(nn.Module):
+    def __init__(
+            self,
+            input_channels=768,
+            channels=256,
+            hidden_channels=512,
+            num_layers=4,
+            num_bands=8,
+            segment_size=256
+            ):
         super().__init__()
-        self.c1 = nn.Conv1d(1, output_dim, 1, 1, 0)
-        self.c2 = nn.Conv1d(output_dim, output_dim, 1, 1, 0)
-        self.c1.weight.data.normal_(0, 0.3)
+        self.input_layer = nn.Conv1d(input_channels, channels, 1)
+        self.mid_layers = nn.ModuleList([])
+        for _ in range(num_layers):
+            self.mid_layers.append(
+                    ConvNeXt1d(channels, hidden_channels, scale=1/num_layers))
+        self.to_amps = nn.Conv1d(channels, num_bands, 1, 1, 0)
+        self.num_bands = num_bands
+        self.segment_size = segment_size
 
-    def forward(self, x):
-        x = self.c1(x)
-        x = torch.sin(x)
-        x = self.c2(x)
-        return x
+    def forward(self, x, t, f0):
+        x = self.input_layer(x)
+        for layer in self.mid_layers:
+            x = layer(x)
+        amps = self.to_amps(x)
+        bands = torch.arange(self.num_bands, device=x.device) + 1
+        N = x.shape[0]
+        L = x.shape[2] * self.segment_size
+        bands = bands.unsqueeze(0).unsqueeze(2).expand(N, self.num_bands, L)
+        f0 = F.interpolate(f0, L, mode='linear')
+        amps = F.interpolate(amps, L, mode='linear')
+        sinewaves = torch.sin(t * math.pi * 2 * f0 * bands) * amps
+        return sinewaves.mean(dim=1)
 
 
-class AmplitudeEncoder(nn.Module):
-    def __init__(self, output_dim=512):
-        super().__init__()
-        self.c1 = nn.Conv1d(1, output_dim, 1, 1, 0)
-
-    def forward(self, amp):
-        return self.c1(amp)
-
-
-class Decoder(nn.Module):
+class NoiseGenerator(nn.Module):
     def __init__(self,
                  input_channels=768,
-                 channels=512,
-                 hidden_channels=1536,
-                 num_layers=10,
+                 channels=256,
+                 hidden_channels=512,
+                 num_layers=4,
                  n_fft=1024,
                  hop_length=256):
         super().__init__()
         self.input_layer = nn.Conv1d(input_channels, channels, 1)
-        self.f0_enc = F0Encoder(channels)
-        self.amp_enc = AmplitudeEncoder(channels)
+        self.amp_enc = nn.Conv1d(1, channels, 1, 1, 0)
+        self.f0_enc = nn.Conv1d(1, channels, 1, 1, 0)
         self.mid_layers = nn.ModuleList([])
         self.pad = nn.ReflectionPad1d([0, 1])
         for _ in range(num_layers):
@@ -48,8 +62,8 @@ class Decoder(nn.Module):
         self.n_fft = n_fft
         self.hop_length = hop_length
 
-    def mag_phase(self, x, f0, amp):
-        condition = self.f0_enc(f0) + self.amp_enc(amp)
+    def mag_phase(self, x, amp, f0):
+        condition = self.amp_enc(amp) + self.f0_enc(f0)
         condition = self.pad(condition)
         x = self.pad(x)
         x = self.input_layer(x)
@@ -58,9 +72,9 @@ class Decoder(nn.Module):
         x = self.output_layer(x)
         return x.chunk(2, dim=1)
 
-    def forward(self, x, f0, amp):
+    def forward(self, x, amp, f0):
         dtype = x.dtype
-        mag, phase = self.mag_phase(x, f0, amp)
+        mag, phase = self.mag_phase(x, amp, f0)
         mag = mag.to(torch.float)
         phase = phase.to(torch.float)
         mag = torch.clamp_max(mag, 6.0)
@@ -70,11 +84,24 @@ class Decoder(nn.Module):
         return torch.istft(s, self.n_fft, hop_length=self.hop_length)
 
 
-class DecoderOnnxWrapper(nn.Module):
-    def __init__(self, decoder):
+class Decoder(nn.Module):
+    def __init__(self, segment_size=256, sample_rate=16000):
         super().__init__()
-        self.decoder = decoder
+        self.noise_gen = NoiseGenerator()
+        self.sin_gen = SineGenerator()
+        self.segment_size = segment_size
+        self.sample_rate = sample_rate
 
-    def forward(self, x, f0, amp):
-        mag, phase = self.decoder.mag_phase(x, f0, amp)
-        return mag, phase
+    def forward(self, x, t, f0, amp):
+        noise = self.noise_gen(x, amp, f0)
+        sinewave = self.sin_gen(x, t, f0)
+        output = sinewave + noise
+        return output
+
+    def forward_without_t(self, x, f0, amp):
+        l = x.shape[2] * self.segment_size
+        b = x.shape[0]
+        t = torch.linspace(0, l-1, l) / self.sample_rate
+        t = t.unsqueeze(0).unsqueeze(0).expand(b, 1, l)
+        t = t.to(x.device).to(x.dtype)
+        return self.forward(x, t, f0, amp)
