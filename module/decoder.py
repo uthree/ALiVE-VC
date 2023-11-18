@@ -95,7 +95,7 @@ class Decoder(nn.Module):
     def forward(self, x, t, f0, amp):
         noise = self.noise_gen(x, amp, f0)
         sinewave = self.sin_gen(x, t, f0)
-        output = sinewave + noise
+        output = noise + sinewave
         return output
 
     def forward_without_t(self, x, f0, amp):
