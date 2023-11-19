@@ -4,7 +4,7 @@ import torch.nn.functional as F
 import torchaudio
 import pyworld as pw
 import numpy as np
-
+import torchcrepe
 
 class ChannelNorm(nn.Module):
     def __init__(self, channels, eps=1e-4):
@@ -94,8 +94,7 @@ def match_features(source, reference, k=4, alpha=0.0):
     return result * (1-alpha) + input_data * alpha
 
 
-
-def compute_f0(wf, sample_rate=16000, segment_size=256, f0_min=20, f0_max=4096):
+def compute_f0_dio(wf, sample_rate=16000, segment_size=256, f0_min=20, f0_max=4096):
     if wf.ndim == 1:
         device = wf.device
         signal = wf.detach().cpu().numpy()
@@ -110,9 +109,33 @@ def compute_f0(wf, sample_rate=16000, segment_size=256, f0_min=20, f0_max=4096):
         return f0
     elif wf.ndim == 2:
         waves = wf.split(1, dim=0)
-        pitchs = [compute_f0(wave[0], sample_rate, segment_size) for wave in waves]
+        pitchs = [compute_f0_dio(wave[0], sample_rate, segment_size) for wave in waves]
         pitchs = torch.stack(pitchs, dim=0)
         return pitchs
+
+
+
+def compute_f0_crepe(wf, sample_rate=16000, segment_size=256, f0_min=0, f0_max=1024):
+    device = wf.device
+    
+    if torch.cuda.is_available():
+        compute_device = 'cuda'
+        wf = wf.to('cuda')
+    else:
+        compute_device = 'cpu'
+    f0 = torchcrepe.predict(wf, sample_rate, fmin=f0_min, fmax=f0_max, device=compute_device, model='tiny')
+
+    f0 = f0.unsqueeze(1)
+    f0 = F.interpolate(f0, wf.shape[1] // segment_size, mode='linear')
+    wf = wf.to(device)
+    return f0
+
+def compute_f0(wf, sample_rate=16000, segment_size=256, f0_min=0, f0_max=1024, method='dio'):
+    if method == 'dio':
+        return compute_f0_dio(wf, sample_rate, segment_size, f0_min, f0_max)
+    elif method == 'crepe':
+        return compute_f0_crepe(wf, sample_rate, segment_size, f0_min, f0_max)
+
 
 
 def compute_amplitude(x, segment_size=256):

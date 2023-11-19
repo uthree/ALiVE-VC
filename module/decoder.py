@@ -40,22 +40,28 @@ class SineGenerator(nn.Module):
             segment_size=256
             ):
         super().__init__()
-        self.to_amps = nn.Conv1d(channels, num_bands, 1, 1, 0)
-        self.to_pitch = nn.Conv1d(channels, 1, 1, 1, 0)
+        self.to_mags = nn.Conv1d(channels, num_bands, 1, 1, 0)
         self.num_bands = num_bands
         self.segment_size = segment_size
+        self.to_pitch = nn.Conv1d(channels, 1, 1, 1, 0)
 
-    def forward(self, x, t, f0):
-        mags = torch.exp(self.to_amps(x).clamp_max(6.0))
+    def forward(self, x, t, f0_e):
+        amps = torch.exp(self.to_mags(x).clamp_max(6.0))
         pitch = self.to_pitch(x)
-        bands = torch.arange(self.num_bands, device=x.device) + 1
+        f0 = 440 * 2 ** (pitch - 1)
+
         N = x.shape[0]
         L = x.shape[2] * self.segment_size
+
+        bands = torch.arange(self.num_bands, device=x.device) + 1
         bands = bands.unsqueeze(0).unsqueeze(2).expand(N, self.num_bands, L)
+        
         f0 = F.interpolate(f0, L, mode='linear')
-        mags = F.interpolate(mags, L, mode='linear')
-        sinewaves = torch.sin(t * math.pi * 2 * f0 * bands) * mags
-        return sinewaves.mean(dim=1)
+        amps = F.interpolate(amps, L, mode='linear')
+
+        sinewaves = torch.sin(t * math.pi * 2 * f0 * bands) * amps
+        wave = sinewaves.mean(dim=1)
+        return torch.sin(t * math.pi * 2 * f0).squeeze(1)
 
 
 class NoiseGenerator(nn.Module):
@@ -103,7 +109,7 @@ class Decoder(nn.Module):
         x = self.shared_gen(x, f0, amp)
         h = self.sin_gen(x, t, f0)
         n = self.noise_gen(x)
-        return n + h
+        return h
 
     def forward_without_t(self, x, f0, amp):
         l = x.shape[2] * self.segment_size
