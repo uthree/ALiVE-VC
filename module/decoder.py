@@ -118,7 +118,7 @@ class NoiseGenerator(nn.Module):
         mag = torch.exp(mag)
         phase = torch.cos(phase) + 1j * torch.sin(phase)
         s = mag * phase
-        wf = torch.istft(s, self.n_fft, hop_length=self.hop_length)
+        wf = torch.istft(s, self.n_fft, hop_length=self.hop_length, center=True, window=torch.hann_window(self.n_fft))
         wf = wf.unsqueeze(1)
         return wf
 
