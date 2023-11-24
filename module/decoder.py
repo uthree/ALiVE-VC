@@ -29,7 +29,7 @@ class FeatureExtractor(nn.Module):
 class HarmonicOscillator(nn.Module):
     def __init__(self,
                  channels=512,
-                 num_harmonics=128,
+                 num_harmonics=64,
                  segment_size=960,
                  sample_rate=48000,
                  ):

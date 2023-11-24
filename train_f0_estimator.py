@@ -30,7 +30,7 @@ parser.add_argument('-gacc', '--gradient-accumulation', default=1, type=int)
 args = parser.parse_args()
 
 def load_or_init_models(device=torch.device('cpu')):
-    m = PitchEstimator().to(device)
+    m = F0Estimator().to(device)
     if os.path.exists(args.model_path):
         m.load_state_dict(torch.load(args.model_path, map_location=device))
     return m

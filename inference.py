@@ -9,10 +9,10 @@ import torch.nn.functional as F
 from tqdm import tqdm
 
 from module.spectrogram import spectrogram
-from module.pitch_estimator import PitchEstimator
+from module.f0_estimator import PitchEstimator
 from module.content_encoder import ContentEncoder
 from module.decoder import Decoder
-from module.common import match_features, compute_f0, compute_amplitude
+from module.common import match_features, compute_f0
 from module.voice_library import VoiceLibrary
 
 parser = argparse.ArgumentParser()
@@ -21,7 +21,7 @@ parser.add_argument('-o', '--outputs', default="./outputs/")
 parser.add_argument('-dep', '--decoder-path', default="decoder.pt")
 parser.add_argument('-disp', '--discriminator-path', default="discriminator.pt")
 parser.add_argument('-cep', '--content-encoder-path', default="content_encoder.pt")
-parser.add_argument('-pep', '--pitch-estimator-path', default="pitch_estimator.pt")
+parser.add_argument('-f0ep', '--pitch-estimator-path', default="f0_estimator.pt")
 parser.add_argument('-f0', '--f0-rate', default=1.0, type=float)
 parser.add_argument('-p', '--pitch', default=0, type=float)
 parser.add_argument('-int', '--intonation', default=1.0, type=float)
@@ -44,7 +44,7 @@ device = torch.device(args.device)
 PE = PitchEstimator().to(device)
 CE = ContentEncoder().to(device)
 Dec = Decoder().to(device)
-PE.load_state_dict(torch.load(args.pitch_estimator_path, map_location=device))
+PE.load_state_dict(torch.load(args.f0_estimator_path, map_location=device))
 CE.load_state_dict(torch.load(args.content_encoder_path, map_location=device))
 Dec.load_state_dict(torch.load(args.decoder_path, map_location=device))
 
@@ -103,9 +103,6 @@ for i, path in enumerate(paths):
             if args.breath:
                 f0 = f0 * 0
 
-            # Compute amplitude
-            amp = compute_amplitude(chunk)
-
             # Pitch Shift and Intonation Multiply
             pitch = 12 * torch.log2(f0 / 440) - 9 # Convert f0 to pitch
             
@@ -118,7 +115,7 @@ for i, path in enumerate(paths):
 
             feat = CE(spec)
             feat = match_features(feat, tgt, k=args.k, alpha=args.alpha)
-            chunk = Dec(feat, f0  * args.f0_rate, amp)
+            chunk = Dec(feat, f0 * args.f0_rate)
             
             chunk = chunk[:, args.chunk:-args.chunk]
 

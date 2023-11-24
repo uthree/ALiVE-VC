@@ -4,6 +4,7 @@ import torch.nn.functional as F
 import torchaudio
 import pyworld as pw
 import numpy as np
+from torchaudio.functional import resample
 
 
 class ChannelNorm(nn.Module):
