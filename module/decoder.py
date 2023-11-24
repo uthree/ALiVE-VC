@@ -58,7 +58,7 @@ class HarmonicOscillator(nn.Module):
 
         self.to_amps = nn.Conv1d(channels, num_harmonics, 1)
     
-    # x: [N, input_channels, Lf] t0: float
+    # x: [N, input_channels, Lf]
     def forward(self, x, f0, t0=0):
         N = x.shape[0] # batch size
         Nh = self.num_harmonics # number of harmonics
