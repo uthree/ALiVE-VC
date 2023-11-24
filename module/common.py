@@ -7,6 +7,10 @@ import numpy as np
 from torchaudio.functional import resample
 
 
+def get_padding(kernel_size, dilation=1):
+    return int((kernel_size*dilation - dilation)/2)
+
+
 class ChannelNorm(nn.Module):
     def __init__(self, channels, eps=1e-4):
         super().__init__()
@@ -41,8 +45,7 @@ class AdaptiveChannelNorm(nn.Module):
 class ConvNeXt1d(nn.Module):
     def __init__(self, channels=512, hidden_channels=1536, kernel_size=7, scale=1, dilation=1):
         super().__init__()
-        self.pad = nn.ReflectionPad1d([kernel_size*dilation-dilation, 0])
-        self.dw_conv = nn.Conv1d(channels, channels, kernel_size, padding=0, groups=channels)
+        self.dw_conv = nn.Conv1d(channels, channels, kernel_size, padding=get_padding(kernel_size, dilation), groups=channels)
         self.norm = ChannelNorm(channels)
         self.pw_conv1 = nn.Conv1d(channels, hidden_channels, 1)
         self.pw_conv2 = nn.Conv1d(hidden_channels, channels, 1)
@@ -50,7 +53,6 @@ class ConvNeXt1d(nn.Module):
 
     def forward(self, x):
         res = x
-        x = self.pad(x)
         x = self.dw_conv(x)
         x = self.norm(x)
         x = self.pw_conv1(x)
@@ -63,8 +65,7 @@ class ConvNeXt1d(nn.Module):
 class AdaptiveConvNeXt1d(nn.Module):
     def __init__(self, channels=512, hidden_channels=1536, condition_emb=512, kernel_size=7, scale=1, dilation=1):
         super().__init__()
-        self.pad = nn.ReflectionPad1d([kernel_size*dilation-dilation, 0])
-        self.dw_conv = nn.Conv1d(channels, channels, kernel_size, padding=0, groups=channels)
+        self.dw_conv = nn.Conv1d(channels, channels, kernel_size, padding=get_padding(kernel_size, dilation), groups=channels)
         self.norm = AdaptiveChannelNorm(channels, condition_emb)
         self.pw_conv1 = nn.Conv1d(channels, hidden_channels, 1)
         self.pw_conv2 = nn.Conv1d(hidden_channels, channels, 1)
@@ -72,7 +73,6 @@ class AdaptiveConvNeXt1d(nn.Module):
 
     def forward(self, x, p):
         res = x
-        x = self.pad(x)
         x = self.dw_conv(x)
         x = self.norm(x, p)
         x = self.pw_conv1(x)
