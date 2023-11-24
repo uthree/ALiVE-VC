@@ -145,8 +145,6 @@ for epoch in range(args.epoch):
                     f0 = pe.estimate(spec)
                 content = ce(spec)
 
-            amp = compute_amplitude(wave)
-
             if VL_mode:
                 wave_recon = dec(VL.match(cut_center(content)), cut_center(f0))
             else:
