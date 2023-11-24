@@ -38,9 +38,10 @@ class AdaptiveChannelNorm(nn.Module):
 
 
 class ConvNeXt1d(nn.Module):
-    def __init__(self, channels=512, hidden_channels=1536, kernel_size=7, scale=1):
+    def __init__(self, channels=512, hidden_channels=1536, kernel_size=7, scale=1, dilation=1):
         super().__init__()
-        self.dw_conv = nn.Conv1d(channels, channels, kernel_size, padding=kernel_size//2, groups=channels, padding_mode='reflect')
+        self.pad = nn.ReflectionPad1d([kernel_size*dilation-dilation, 0])
+        self.dw_conv = nn.Conv1d(channels, channels, kernel_size, padding=0, groups=channels)
         self.norm = ChannelNorm(channels)
         self.pw_conv1 = nn.Conv1d(channels, hidden_channels, 1)
         self.pw_conv2 = nn.Conv1d(hidden_channels, channels, 1)
@@ -48,6 +49,7 @@ class ConvNeXt1d(nn.Module):
 
     def forward(self, x):
         res = x
+        x = self.pad(x)
         x = self.dw_conv(x)
         x = self.norm(x)
         x = self.pw_conv1(x)
@@ -58,9 +60,10 @@ class ConvNeXt1d(nn.Module):
 
 
 class AdaptiveConvNeXt1d(nn.Module):
-    def __init__(self, channels=512, hidden_channels=1536, condition_emb=512, kernel_size=7, scale=1):
+    def __init__(self, channels=512, hidden_channels=1536, condition_emb=512, kernel_size=7, scale=1, dilation=1):
         super().__init__()
-        self.dw_conv = nn.Conv1d(channels, channels, kernel_size, padding=kernel_size//2, groups=channels, padding_mode='reflect')
+        self.pad = nn.ReflectionPad1d([kernel_size*dilation-dilation, 0])
+        self.dw_conv = nn.Conv1d(channels, channels, kernel_size, padding=0, groups=channels)
         self.norm = AdaptiveChannelNorm(channels, condition_emb)
         self.pw_conv1 = nn.Conv1d(channels, hidden_channels, 1)
         self.pw_conv2 = nn.Conv1d(hidden_channels, channels, 1)
@@ -68,6 +71,7 @@ class AdaptiveConvNeXt1d(nn.Module):
 
     def forward(self, x, p):
         res = x
+        x = self.pad(x)
         x = self.dw_conv(x)
         x = self.norm(x, p)
         x = self.pw_conv1(x)
@@ -95,7 +99,7 @@ def match_features(source, reference, k=4, alpha=0.0):
 
 
 
-def compute_f0(wf, sample_rate=16000, segment_size=256, f0_min=20, f0_max=4096):
+def compute_f0_dio(wf, sample_rate=8000, segment_size=256, f0_min=20, f0_max=4096):
     if wf.ndim == 1:
         device = wf.device
         signal = wf.detach().cpu().numpy()
@@ -110,13 +114,14 @@ def compute_f0(wf, sample_rate=16000, segment_size=256, f0_min=20, f0_max=4096):
         return f0
     elif wf.ndim == 2:
         waves = wf.split(1, dim=0)
-        pitchs = [compute_f0(wave[0], sample_rate, segment_size) for wave in waves]
+        pitchs = [compute_f0_dio(wave[0], sample_rate, segment_size) for wave in waves]
         pitchs = torch.stack(pitchs, dim=0)
         return pitchs
 
 
-def compute_amplitude(x, segment_size=256):
-    x = x.abs()
-    x = x.unsqueeze(1)
-    x = F.avg_pool1d(x, segment_size, segment_size)
-    return x
+def compute_f0(wf, sample_rate=48000, segment_size=960):
+    l = wf.shape[1]
+    wf = resample(wf, sample_rate, 8000)
+    pitchs = compute_f0_dio(wf, 8000)
+    return F.interpolate(pitchs, l // segment_size, mode='linear')
+

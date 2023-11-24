@@ -43,9 +43,9 @@ parser.add_argument('-a', '--alpha', default=0.0, type=float)
 parser.add_argument('-fp16', default=False, type=bool)
 parser.add_argument('-lib', '--voice-library-path', default="NONE")
 parser.add_argument('-wpe', '--world-pitch-estimation', default=False, type=bool)
-parser.add_argument('-isr', '--input-sr', default=16000, type=int)
-parser.add_argument('-osr', '--output-sr', default=16000, type=int)
-parser.add_argument('-lsr', '--loopback-sr', default=16000, type=int)
+parser.add_argument('-isr', '--input-sr', default=48000, type=int)
+parser.add_argument('-osr', '--output-sr', default=48000, type=int)
+parser.add_argument('-lsr', '--loopback-sr', default=48000, type=int)
 parser.add_argument('-ll', '--low-latency-mode', default=False, type=bool)
 
 
@@ -83,7 +83,7 @@ if args.target != "NONE":
     print("loading target...")
     wf, sr = torchaudio.load(args.target)
     wf = wf.to(device)
-    wf = torchaudio.functional.resample(wf, sr, 16000)
+    wf = torchaudio.functional.resample(wf, sr, 48000)
     wf = wf / wf.abs().max()
     wf = wf[:1]
     tgt = CE(spectrogram(wf)).detach()[:, :, ::4]
@@ -137,7 +137,7 @@ while True:
     with torch.inference_mode():
         with torch.cuda.amp.autocast(enabled=args.fp16):
             # Downsample
-            data = torchaudio.functional.resample(data, args.input_sr, 16000)
+            data = torchaudio.functional.resample(data, args.input_sr, 48000)
             data = torchaudio.functional.gain(data, args.input_gain)
 
             amp = compute_amplitude(data)
@@ -167,7 +167,7 @@ while True:
             # gain
             data = torchaudio.functional.gain(data, args.gain)
             # Upsample
-            data = torchaudio.functional.resample(data, 16000, args.output_sr)
+            data = torchaudio.functional.resample(data, 48000, args.output_sr)
 
             data = data[0]
 

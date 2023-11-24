@@ -11,13 +11,13 @@ from tqdm import tqdm
 
 from module.dataset import WaveFileDirectoryWithF0
 from module.spectrogram import spectrogram
-from module.pitch_estimator import PitchEstimator
+from module.f0_estimator import F0Estimator
 
 
-parser = argparse.ArgumentParser(description="train pitch estimator")
+parser = argparse.ArgumentParser(description="train f0 estimator")
 
 parser.add_argument('dataset')
-parser.add_argument('-mp', '--model-path', default="pitch_estimator.pt")
+parser.add_argument('-mp', '--model-path', default="f0_estimator.pt")
 parser.add_argument('-d', '--device', default='cpu')
 parser.add_argument('-e', '--epoch', default=100, type=int)
 parser.add_argument('-b', '--batch-size', default=1, type=int)

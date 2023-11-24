@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 def spectrogram(x):
     dtype = x.dtype
     x = x.to(torch.float)
-    x = torch.stft(x, 1024, 256, 1024, center=True, return_complex=True).abs()
+    x = torch.stft(x, 3840, 960, 3840, center=True, return_complex=True).abs()
     x = x.to(dtype)
     return x[:, :, :-1]
 

@@ -13,11 +13,11 @@ from tqdm import tqdm
 from module.dataset import WaveFileDirectory
 from module.spectrogram import spectrogram
 from module.content_encoder import ContentEncoder
-from module.pitch_estimator import PitchEstimator
+from module.f0_estimator import F0Estimator
 from module.decoder import Decoder
 from module.voice_library import VoiceLibrary
 from module.discriminator import Discriminator
-from module.common import match_features, compute_f0, compute_amplitude
+from module.common import match_features, compute_f0
 
 parser = argparse.ArgumentParser(description="train Vocoder")
 
@@ -25,7 +25,7 @@ parser.add_argument('dataset')
 parser.add_argument('-dep', '--decoder-path', default="decoder.pt")
 parser.add_argument('-disp', '--discriminator-path', default="discriminator.pt")
 parser.add_argument('-cep', '--content-encoder-path', default="content_encoder.pt")
-parser.add_argument('-pep', '--pitch-estimator-path', default="pitch_estimator.pt")
+parser.add_argument('-f0ep', '--f0-estimator-path', default="f0_estimator.pt")
 parser.add_argument('-d', '--device', default='cpu')
 parser.add_argument('-e', '--epoch', default=1000, type=int)
 parser.add_argument('-b', '--batch-size', default=4, type=int)
@@ -53,14 +53,14 @@ def inference_mode(model):
 def load_or_init_models(device=torch.device('cpu')):
     dis = Discriminator().to(device)
     ce = ContentEncoder().to(device)
-    pe = PitchEstimator().to(device)
+    pe = F0Estimator().to(device)
     dec = Decoder().to(device)
     inference_mode(ce)
     inference_mode(pe)
     if os.path.exists(args.content_encoder_path):
         ce.load_state_dict(torch.load(args.content_encoder_path, map_location=device))
-    if os.path.exists(args.pitch_estimator_path):
-        pe.load_state_dict(torch.load(args.pitch_estimator_path, map_location=device))
+    if os.path.exists(args.f0_estimator_path):
+        pe.load_state_dict(torch.load(args.f0_estimator_path, map_location=device))
     if os.path.exists(args.decoder_path):
         dec.load_state_dict(torch.load(args.decoder_path, map_location=device))
     if os.path.exists(args.discriminator_path):
@@ -107,7 +107,7 @@ OptD = optim.AdamW(D.parameters(), lr=args.learning_rate, betas=(0.9, 0.99))
 SchedulerG = torch.optim.lr_scheduler.CosineAnnealingLR(OptG, 5000)
 SchedulerD = torch.optim.lr_scheduler.CosineAnnealingLR(OptD, 5000)
 
-mel = torchaudio.transforms.MelSpectrogram(16000, n_fft=1024, n_mels=80).to(device)
+mel = torchaudio.transforms.MelSpectrogram(48000, n_fft=3840, hop_length=960, n_mels=192).to(device)
 def log_mel(x):
     x = mel(x)
     x = torch.log(x + 1e-5)
@@ -148,9 +148,9 @@ for epoch in range(args.epoch):
             amp = compute_amplitude(wave)
 
             if VL_mode:
-                wave_recon = dec(VL.match(cut_center(content)), cut_center(f0), cut_center(amp))
+                wave_recon = dec(VL.match(cut_center(content)), cut_center(f0))
             else:
-                wave_recon = dec(match_features(cut_center(content), content), cut_center(f0), cut_center(amp))
+                wave_recon = dec(match_features(cut_center(content), content), cut_center(f0))
             logits = D.logits(wave_recon)
             
             loss_mel = (log_mel(wave_recon) - log_mel(cut_center_wav(wave))).abs().mean()
