@@ -5,10 +5,10 @@ import torch
 import torchaudio
 import torch.nn.functional as F
 from module.spectrogram import spectrogram
-from module.common import match_features, compute_f0, compute_amplitude
+from module.common import match_features, compute_f0
 from module.decoder import Decoder
 from module.content_encoder import ContentEncoder
-from module.pitch_estimator import PitchEstimator
+from module.f0_estimator import F0Estimator
 from module.voice_library import VoiceLibrary
 from module.logo import print_logo
 import json
@@ -29,8 +29,8 @@ parser.add_argument('-g', '--gain', default=0.0, type=float)
 parser.add_argument('-ig', '--input-gain', default=0.0, type=float)
 parser.add_argument('-dep', '--decoder-path', default="decoder.pt")
 parser.add_argument('-cep', '--content-encoder-path', default="content_encoder.pt")
-parser.add_argument('-pep', '--f0-estimator-path', default="f0_estimator.pt")
-parser.add_argument('-b', '--buffersize', default=12, type=int)
+parser.add_argument('-f0ep', '--f0-estimator-path', default="f0_estimator.pt")
+parser.add_argument('-b', '--buffersize', default=6, type=int)
 parser.add_argument('-c', '--chunk', default=960, type=int)
 parser.add_argument('-ic', '--inputchannels', default=1, type=int)
 parser.add_argument('-oc', '--outputchannels', default=1, type=int)
@@ -43,9 +43,9 @@ parser.add_argument('-a', '--alpha', default=0.0, type=float)
 parser.add_argument('-fp16', default=False, type=bool)
 parser.add_argument('-lib', '--voice-library-path', default="NONE")
 parser.add_argument('-wpe', '--world-pitch-estimation', default=False, type=bool)
-parser.add_argument('-isr', '--input-sr', default=48000, type=int)
-parser.add_argument('-osr', '--output-sr', default=48000, type=int)
-parser.add_argument('-lsr', '--loopback-sr', default=48000, type=int)
+parser.add_argument('-isr', '--input-sr', default=24000, type=int)
+parser.add_argument('-osr', '--output-sr', default=24000, type=int)
+parser.add_argument('-lsr', '--loopback-sr', default=24000, type=int)
 parser.add_argument('-ll', '--low-latency-mode', default=True, type=bool)
 
 
@@ -70,7 +70,7 @@ chunk = args.chunk
 buffer_size = args.buffersize
 
 
-PE = PitchEstimator().to(device)
+PE = F0Estimator().to(device)
 CE = ContentEncoder().to(device)
 Dec = Decoder().to(device)
 PE.load_state_dict(torch.load(args.f0_estimator_path, map_location=device))
@@ -139,8 +139,6 @@ while True:
             # Downsample
             data = torchaudio.functional.resample(data, args.input_sr, 48000)
             data = torchaudio.functional.gain(data, args.input_gain)
-
-            amp = compute_amplitude(data)
 
             # to spectrogram
             spec = spectrogram(data)
