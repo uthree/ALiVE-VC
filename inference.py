@@ -9,7 +9,7 @@ import torch.nn.functional as F
 from tqdm import tqdm
 
 from module.spectrogram import spectrogram
-from module.f0_estimator import PitchEstimator
+from module.f0_estimator import F0Estimator
 from module.content_encoder import ContentEncoder
 from module.decoder import Decoder
 from module.common import match_features, compute_f0
@@ -21,7 +21,7 @@ parser.add_argument('-o', '--outputs', default="./outputs/")
 parser.add_argument('-dep', '--decoder-path', default="decoder.pt")
 parser.add_argument('-disp', '--discriminator-path', default="discriminator.pt")
 parser.add_argument('-cep', '--content-encoder-path', default="content_encoder.pt")
-parser.add_argument('-f0ep', '--pitch-estimator-path', default="f0_estimator.pt")
+parser.add_argument('-f0ep', '--f0-estimator-path', default="f0_estimator.pt")
 parser.add_argument('-f0', '--f0-rate', default=1.0, type=float)
 parser.add_argument('-p', '--pitch', default=0, type=float)
 parser.add_argument('-int', '--intonation', default=1.0, type=float)
@@ -41,7 +41,7 @@ args = parser.parse_args()
 
 device = torch.device(args.device)
 
-PE = PitchEstimator().to(device)
+PE = F0Estimator().to(device)
 CE = ContentEncoder().to(device)
 Dec = Decoder().to(device)
 PE.load_state_dict(torch.load(args.f0_estimator_path, map_location=device))

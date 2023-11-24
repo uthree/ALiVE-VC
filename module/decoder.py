@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.utils import weight_norm, remove_weight_norm
 from module.common import ConvNeXt1d
+import math
 
 
 class FeatureExtractor(nn.Module):
