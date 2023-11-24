@@ -32,8 +32,9 @@ parser.add_argument('-a', '--alpha', default=0.0, type=float)
 parser.add_argument('-k', default=4, type=int)
 parser.add_argument('-c', '--chunk', default=65536, type=int)
 parser.add_argument('-lib', '--voice-library-path', default="NONE")
-parser.add_argument('-noise', '--noise-gain', default=1.0, type=float)
-parser.add_argument('--breath', default=False, type=bool)
+parser.add_argument('-noise', '--noise-amp', default=1.0, type=float)
+parser.add_argument('-harmonics', '--harmonics-amp', default=1.0, type=float)
+parser.add_argument('-pf', '--post-filter-alpha', default=0.0, type=float)
 parser.add_argument('-wpe', '--world-pitch-estimation', default=False)
 parser.add_argument('-norm', '--normalize', default=False, type=bool)
 
@@ -100,8 +101,6 @@ for i, path in enumerate(paths):
                 f0 = compute_f0(chunk)
             else:
                 f0 = PE.estimate(spec)
-            if args.breath:
-                f0 = f0 * 0
 
             # Pitch Shift and Intonation Multiply
             pitch = 12 * torch.log2(f0 / 440) - 9 # Convert f0 to pitch
@@ -115,7 +114,8 @@ for i, path in enumerate(paths):
 
             feat = CE(spec)
             feat = match_features(feat, tgt, k=args.k, alpha=args.alpha)
-            chunk = Dec(feat, f0 * args.f0_rate)
+            chunk = Dec(feat, f0 * args.f0_rate, 0,
+                        args.post_filter_alpha, args.noise_amp, args.harmonics_amp)
             
             chunk = chunk[:, args.chunk:-args.chunk]
 

@@ -117,6 +117,7 @@ for epoch in range(args.epoch):
     for batch, wave in enumerate(dl):
         wave = wave.to(device) * (torch.rand(wave.shape[0], 1, device=device) * 2)
         spec = spectrogram(wave)
+        N = wave.shape[0]
         
         # Train G.
         OptG.zero_grad()
@@ -127,7 +128,8 @@ for epoch in range(args.epoch):
                 else:
                     f0 = pe.estimate(spec)
                 content = ce(spec)
-            wave_recon = dec(match_features(cut_center(content), content), cut_center(f0))
+            PF_alpha = torch.rand(N, 1, 1, device=device)
+            wave_recon = dec(match_features(cut_center(content), content), cut_center(f0), post_filter_alpha=PF_alpha)
             wave_fake = dec(match_features(cut_center(content), content.roll(1, dims=0)),
                                    cut_center(f0) * (1.0 + torch.rand(1, 1, device=device)))
             logits = D.logits(wave_fake) + D.logits(wave_recon)
@@ -166,7 +168,6 @@ for epoch in range(args.epoch):
         
         tqdm.write(f"Step {step_count}, D: {loss_d.item():.4f}, Adv.: {loss_adv.item():.4f}, Mel.: {loss_mel.item():.4f}, Feat.: {loss_feat.item():.4f}, Con.: {loss_con.item():.4f}")
 
-        N = wave.shape[0]
         bar.update(N)
 
         if batch % 300 == 0:

@@ -132,6 +132,7 @@ for epoch in range(args.epoch):
     for batch, wave in enumerate(dl):
         wave = wave.to(device) * torch.rand(wave.shape[0], 1, device=device) * 2
         spec = spectrogram(wave)
+        N = wave.shape[0]
 
         # Train G.
         OptG.zero_grad()
@@ -145,11 +146,14 @@ for epoch in range(args.epoch):
                     f0 = pe.estimate(spec)
                 content = ce(spec)
 
+            PF_alpha = torch.rand(N, 1, 1, device=device)
+
             if VL_mode:
-                wave_recon = dec(VL.match(cut_center(content)), cut_center(f0))
+                wave_recon = dec(VL.match(cut_center(content)), cut_center(f0), post_filter_alpha=PF_alpha)
             else:
-                wave_recon = dec(match_features(cut_center(content), content), cut_center(f0))
+                wave_recon = dec(match_features(cut_center(content), content), cut_center(f0), post_filter_alpha=PF_alpha)
             logits = D.logits(wave_recon)
+
             
             loss_mel = (log_mel(wave_recon) - log_mel(cut_center_wav(wave))).abs().mean()
             loss_feat = D.feat_loss(wave_recon, cut_center_wav(wave))
@@ -187,7 +191,6 @@ for epoch in range(args.epoch):
         
         tqdm.write(f"Step {step_count}, D: {loss_d.item():.4f}, Adv.: {loss_adv.item():.4f}, Mel.: {loss_mel.item():.4f}, Feat.: {loss_feat.item():.4f}, Con.: {loss_con.item():.4f}")
 
-        N = wave.shape[0]
         bar.update(N)
 
         if batch % 100 == 0:

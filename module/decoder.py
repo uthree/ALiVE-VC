@@ -161,12 +161,12 @@ class PostFilter(nn.Module):
         self.mid_layer = DilatedCausalConvStack(channels, channels, kernel_size, num_layers)
         self.output_layer = nn.Conv1d(channels, 1, 1)
 
-    def forward(self, x):
+    def forward(self, x, alpha=0):
         res = x
         x = self.input_layer(x)
         x = self.mid_layer(x)
         x = self.output_layer(x)
-        return x + res
+        return x * (1 - alpha) + res * alpha
 
 
 class Decoder(nn.Module):
@@ -177,11 +177,11 @@ class Decoder(nn.Module):
         self.noise_generator = NoiseGenerator()
         self.post_filter = PostFilter()
 
-    def forward(self, x, f0, t0=0):
+    def forward(self, x, f0, t0=0, post_filter_alpha=0, noise_amp=1, harmonics_amp=1):
         x = self.feature_extractor(x, f0)
         harmonics = self.harmonic_oscillator(x, f0, t0)
         noise = self.noise_generator(x)
-        wave = harmonics + noise
-        wave = self.post_filter(wave)
+        wave = harmonics * harmonics_amp + noise * noise_amp
+        wave = self.post_filter(wave, post_filter_alpha)
         wave = wave.squeeze(1)
         return wave
