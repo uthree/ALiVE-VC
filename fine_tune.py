@@ -146,12 +146,10 @@ for epoch in range(args.epoch):
                     f0 = pe.estimate(spec)
                 content = ce(spec)
 
-            PF_alpha = torch.rand(N, 1, 1, device=device)
-
             if VL_mode:
-                wave_recon = dec(VL.match(cut_center(content)), cut_center(f0), post_filter_alpha=PF_alpha)
+                wave_recon = dec(VL.match(cut_center(content)), cut_center(f0))
             else:
-                wave_recon = dec(match_features(cut_center(content), content), cut_center(f0), post_filter_alpha=PF_alpha)
+                wave_recon = dec(match_features(cut_center(content), content), cut_center(f0))
             logits = D.logits(wave_recon)
 
             
