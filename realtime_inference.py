@@ -29,9 +29,9 @@ parser.add_argument('-g', '--gain', default=0.0, type=float)
 parser.add_argument('-ig', '--input-gain', default=0.0, type=float)
 parser.add_argument('-dep', '--decoder-path', default="decoder.pt")
 parser.add_argument('-cep', '--content-encoder-path', default="content_encoder.pt")
-parser.add_argument('-pep', '--pitch-estimator-path', default="pitch_estimator.pt")
-parser.add_argument('-b', '--buffersize', default=8, type=int)
-parser.add_argument('-c', '--chunk', default=1024, type=int)
+parser.add_argument('-pep', '--f0-estimator-path', default="f0_estimator.pt")
+parser.add_argument('-b', '--buffersize', default=12, type=int)
+parser.add_argument('-c', '--chunk', default=960, type=int)
 parser.add_argument('-ic', '--inputchannels', default=1, type=int)
 parser.add_argument('-oc', '--outputchannels', default=1, type=int)
 parser.add_argument('-lc', '--loopbackchannels', default=1, type=int)
@@ -46,7 +46,7 @@ parser.add_argument('-wpe', '--world-pitch-estimation', default=False, type=bool
 parser.add_argument('-isr', '--input-sr', default=48000, type=int)
 parser.add_argument('-osr', '--output-sr', default=48000, type=int)
 parser.add_argument('-lsr', '--loopback-sr', default=48000, type=int)
-parser.add_argument('-ll', '--low-latency-mode', default=False, type=bool)
+parser.add_argument('-ll', '--low-latency-mode', default=True, type=bool)
 
 
 
@@ -73,7 +73,7 @@ buffer_size = args.buffersize
 PE = PitchEstimator().to(device)
 CE = ContentEncoder().to(device)
 Dec = Decoder().to(device)
-PE.load_state_dict(torch.load(args.pitch_estimator_path, map_location=device))
+PE.load_state_dict(torch.load(args.f0_estimator_path, map_location=device))
 CE.load_state_dict(torch.load(args.content_encoder_path, map_location=device))
 Dec.load_state_dict(torch.load(args.decoder_path, map_location=device))
 
@@ -159,7 +159,7 @@ while True:
             f0[torch.logical_or(f0.isnan(), f0.isinf())] = 0
 
             content = match_features(content, tgt, k=args.k, alpha=args.alpha)
-            data = Dec(content, f0, amp)
+            data = Dec(content, f0)
             
             pitch_center = 0
             bar.set_description(desc=f"Output F0: {f0[0, 0, pitch_center]:.0f} Hz")
