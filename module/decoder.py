@@ -2,8 +2,22 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.utils import weight_norm, remove_weight_norm
-from module.common import ConvNeXt1d
+from module.common import ConvNeXt1d, AdaptiveConvNeXt1d
 import math
+
+
+class F0Encoder(nn.Module):
+    def __init__(self, output_dim=512):
+        super().__init__()
+        self.c1 = nn.Conv1d(1, output_dim, 1, 1, 0)
+        self.c2 = nn.Conv1d(output_dim, output_dim, 1, 1, 0)
+        self.c1.weight.data.normal_(0, 0.3)
+
+    def forward(self, x):
+        x = self.c1(x)
+        x = torch.sin(x)
+        x = self.c2(x)
+        return x
 
 
 class FeatureExtractor(nn.Module):
@@ -17,13 +31,16 @@ class FeatureExtractor(nn.Module):
             ):
         super().__init__()
         self.input_layer = nn.Conv1d(input_channels, channels, 1)
+        self.f0_encoder = F0Encoder(channels)
         scale = 1 / num_layers
-        self.mid_layers = nn.Sequential(
-                *[ ConvNeXt1d(channels, hidden_channels, kernel_size, scale) for _ in range(num_layers)])
+        self.mid_layers = nn.ModuleList(
+                [ AdaptiveConvNeXt1d(channels, hidden_channels, channels, kernel_size, scale) for _ in range(num_layers)])
     
-    def forward(self, x):
+    def forward(self, x, f0):
         x = self.input_layer(x)
-        x = self.mid_layers(x)
+        condition = self.f0_encoder(f0)
+        for l in self.mid_layers:
+            x = l(x, condition)
         return x
 
 
@@ -160,7 +177,7 @@ class Decoder(nn.Module):
         self.post_filter = PostFilter()
 
     def forward(self, x, f0, t0=0):
-        x = self.feature_extractor(x)
+        x = self.feature_extractor(x, f0)
         harmonics = self.harmonic_oscillator(x, f0, t0)
         noise = self.noise_generator(x)
         wave = harmonics + noise
