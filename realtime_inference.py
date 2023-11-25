@@ -31,7 +31,7 @@ parser.add_argument('-dep', '--decoder-path', default="decoder.pt")
 parser.add_argument('-cep', '--content-encoder-path', default="content_encoder.pt")
 parser.add_argument('-f0ep', '--f0-estimator-path', default="f0_estimator.pt")
 parser.add_argument('-b', '--buffersize', default=8, type=int)
-parser.add_argument('-c', '--chunk', default=1920, type=int)
+parser.add_argument('-c', '--chunk', default=2880, type=int)
 parser.add_argument('-ic', '--inputchannels', default=1, type=int)
 parser.add_argument('-oc', '--outputchannels', default=1, type=int)
 parser.add_argument('-lc', '--loopbackchannels', default=1, type=int)
@@ -159,7 +159,7 @@ while True:
             content = match_features(content, tgt, k=args.k, alpha=args.alpha)
             data = Dec(content, f0)
             
-            pitch_center = 0
+            pitch_center = f0.shape[2] // 2
             bar.set_description(desc=f"Output F0: {f0[0, 0, pitch_center]:.0f} Hz")
 
             # gain
