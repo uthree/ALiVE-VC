@@ -91,7 +91,7 @@ class HarmonicOscillator(nn.Module):
         dt = torch.cumsum(formants / self.sample_rate, dim=2)
         theta = 2 * math.pi * dt + phi
         harmonics = torch.sin(theta) * amps
-        phi = torch.asin(torch.sin(theta + phi))
+        phi = torch.asin(torch.sin(theta))
 
         # Sum all harmonics
         wave = harmonics.mean(dim=1, keepdim=True)
