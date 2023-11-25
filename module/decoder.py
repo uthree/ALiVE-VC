@@ -128,15 +128,24 @@ class NoiseGenerator(nn.Module):
         return wf
 
 
-class DilatedConvStack(nn.Module):
+class CausalConv1d(nn.Module):
+    def __init__(self, input_channels, output_channels, kernel_size=5, dilation=1):
+        super().__init__()
+        self.pad = nn.ReflectionPad1d([kernel_size*dilation-dilation, 0])
+        self.conv = nn.Conv1d(input_channels, output_channels, kernel_size, dilation=dilation)
+
+    def forward(self, x):
+        return self.conv(self.pad(x))
+
+
+class DilatedCausalConvStack(nn.Module):
     def __init__(self, input_channels, output_channels, kernel_size=5, num_layers=3):
         super().__init__()
         self.convs = nn.ModuleList([])
         self.convs.append(nn.Conv1d(input_channels, output_channels, kernel_size, padding=kernel_size//2))
         for d in range(num_layers-1):
             dilation = 2**(1+d)
-            self.convs.append(nn.Conv1d(output_channels, output_channels, kernel_size, stride=1,
-                                        padding=get_padding(kernel_size, dilation), dilation=dilation))
+            self.convs.append(CausalConv1d(output_channels, output_channels, kernel_size, dilation=dilation))
 
     def forward(self, x):
         for c in self.convs:
@@ -154,7 +163,7 @@ class PostFilter(nn.Module):
             ):
         super().__init__()
         self.input_layer = nn.Conv1d(1, channels, 1, 1)
-        self.mid_layer = DilatedConvStack(channels, channels, kernel_size, num_layers)
+        self.mid_layer = DilatedCausalConvStack(channels, channels, kernel_size, num_layers)
         self.output_layer = nn.Conv1d(channels, 1, 1)
 
     def forward(self, x, alpha=0):
