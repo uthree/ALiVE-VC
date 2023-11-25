@@ -46,7 +46,6 @@ parser.add_argument('-wpe', '--world-pitch-estimation', default=False, type=bool
 parser.add_argument('-isr', '--input-sr', default=24000, type=int)
 parser.add_argument('-osr', '--output-sr', default=24000, type=int)
 parser.add_argument('-lsr', '--loopback-sr', default=24000, type=int)
-parser.add_argument('-ll', '--low-latency-mode', default=False, type=bool)
 
 
 
@@ -79,6 +78,7 @@ Dec.load_state_dict(torch.load(args.decoder_path, map_location=device))
 
 tgt = torch.zeros(1, 768, 0).to(device)
 
+phi = 0
 if args.target != "NONE":
     print("loading target...")
     wf, sr = torchaudio.load(args.target)
@@ -121,6 +121,11 @@ print("converting voice...")
 print("")
 bar = tqdm()
 
+downsample_rate = 48000 / args.output_sr
+internal_chunk = int(chunk / downsample_rate)
+center = (chunk * buffer_size) // 2
+end_of_output = center + chunk // 2
+
 while True:
     data = stream_input.read(chunk)
     data = np.frombuffer(data, dtype=np.int16)
@@ -157,8 +162,9 @@ while True:
             f0[torch.logical_or(f0.isnan(), f0.isinf())] = 0
 
             content = match_features(content, tgt, k=args.k, alpha=args.alpha)
-            data = Dec(content, f0)
-            
+            data, phi_out = Dec(content, f0=f0, phi=phi)
+            phi = phi_out[:, :, end_of_output].unsqueeze(2)
+
             pitch_center = f0.shape[2] // 2
             bar.set_description(desc=f"Output F0: {f0[0, 0, pitch_center]:.0f} Hz")
 
@@ -173,10 +179,7 @@ while True:
     data = (data) * 32768
     data = data
     data = data.astype(np.int16)
-    if args.low_latency_mode:
-        center = buffer_size * chunk - chunk
-    else:
-        center = buffer_size * chunk // 2
+    center = buffer_size * chunk // 2
     s = center - chunk // 2
     e = center + chunk // 2
     data = data[s:e]

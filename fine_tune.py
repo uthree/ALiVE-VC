@@ -147,9 +147,9 @@ for epoch in range(args.epoch):
                 content = ce(spec)
 
             if VL_mode:
-                wave_recon = dec(VL.match(cut_center(content)), cut_center(f0))
+                wave_recon, _ = dec(VL.match(cut_center(content)), cut_center(f0))
             else:
-                wave_recon = dec(match_features(cut_center(content), content), cut_center(f0))
+                wave_recon, _ = dec(match_features(cut_center(content), content), cut_center(f0))
             logits = D.logits(wave_recon)
 
             

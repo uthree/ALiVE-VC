@@ -63,7 +63,7 @@ class HarmonicOscillator(nn.Module):
         self.to_amps = nn.Conv1d(channels, num_harmonics, 1)
     
     # x: [N, input_channels, Lf]
-    def forward(self, x, f0, t0=0):
+    def forward(self, x, f0, phi=0):
         N = x.shape[0] # batch size
         Nh = self.num_harmonics # number of harmonics
         Lf = x.shape[2] # frame length
@@ -89,12 +89,14 @@ class HarmonicOscillator(nn.Module):
 
         # Generate harmonics
         dt = torch.cumsum(formants / self.sample_rate, dim=2)
-        harmonics = torch.sin(2 * math.pi * dt) * amps
+        theta = 2 * math.pi * dt + phi
+        harmonics = torch.sin(theta) * amps
+        phi = torch.asin(torch.sin(theta + phi))
 
         # Sum all harmonics
         wave = harmonics.mean(dim=1, keepdim=True)
 
-        return wave
+        return wave, phi
 
 
 class NoiseGenerator(nn.Module):
@@ -181,11 +183,11 @@ class Decoder(nn.Module):
         self.noise_generator = NoiseGenerator()
         self.post_filter = PostFilter()
 
-    def forward(self, x, f0, t0=0, post_filter_alpha=0, noise_amp=1, harmonics_amp=1):
+    def forward(self, x, f0, phi=0, post_filter_alpha=0, noise_amp=1, harmonics_amp=1):
         x = self.feature_extractor(x, f0)
-        harmonics = self.harmonic_oscillator(x, f0, t0)
+        harmonics, phi = self.harmonic_oscillator(x, f0, phi)
         noise = self.noise_generator(x)
         wave = harmonics * harmonics_amp + noise * noise_amp
         wave = self.post_filter(wave, post_filter_alpha)
         wave = wave.squeeze(1)
-        return wave
+        return wave, phi
