@@ -95,6 +95,7 @@ class HarmonicOscillator(nn.Module):
         theta = 2 * math.pi * dt + phi
         harmonics = torch.sin(theta)
         phi = torch.asin(harmonics)
+    
         harmonics = harmonics * amps
 
         # Sum all harmonics
