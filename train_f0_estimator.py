@@ -56,7 +56,7 @@ scaler = torch.cuda.amp.GradScaler(enabled=args.fp16)
 
 optimizer = optim.RAdam(model.parameters(), lr=args.learning_rate)
 
-criterion = nn.CrossEntropyLoss()
+criterion = nn.CrossEntropyLoss(ignore_index=0)
 
 for epoch in range(args.epoch):
     tqdm.write(f"Epoch #{epoch}")
