@@ -78,7 +78,6 @@ Dec.load_state_dict(torch.load(args.decoder_path, map_location=device))
 
 tgt = torch.zeros(1, 768, 0).to(device)
 
-phi = 0
 if args.target != "NONE":
     print("loading target...")
     wf, sr = torchaudio.load(args.target)
@@ -122,9 +121,13 @@ print("")
 bar = tqdm()
 
 downsample_rate = 48000 / args.output_sr
-internal_chunk = int(chunk / downsample_rate)
-center = (chunk * buffer_size) // 2
-end_of_output = center + chunk // 2
+internal_chunk = int(chunk * downsample_rate)
+center = int(internal_chunk * buffer_size) // 2
+end_of_output = center + internal_chunk // 2 + 1
+begin_of_output = center - internal_chunk // 2
+print(end_of_output)
+
+phi = 0
 
 while True:
     data = stream_input.read(chunk)
@@ -159,10 +162,11 @@ while True:
             pitch = pitch + args.pitch
 
             f0 = 440 * 2 ** ((pitch + 9) / 12) # Convert pitch to f0
-            f0[torch.logical_or(f0.isnan(), f0.isinf())] = 0
-
+            f0[torch.logical_or(f0.isnan(), f0.isinf())] = 00
+            
             content = match_features(content, tgt, k=args.k, alpha=args.alpha)
-            data, phi_out = Dec(content, f0=f0, phi=phi)
+            data, phi_out = Dec(content, f0=f0, phi=phi,
+                                crop=(begin_of_output, end_of_output-1))
             phi = phi_out[:, :, end_of_output].unsqueeze(2)
 
             pitch_center = f0.shape[2] // 2

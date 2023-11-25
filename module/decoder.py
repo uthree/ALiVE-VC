@@ -63,7 +63,7 @@ class HarmonicOscillator(nn.Module):
         self.to_amps = nn.Conv1d(channels, num_harmonics, 1)
     
     # x: [N, input_channels, Lf]
-    def forward(self, x, f0, phi=0):
+    def forward(self, x, f0, phi=0, crop=(0, -1)):
         N = x.shape[0] # batch size
         Nh = self.num_harmonics # number of harmonics
         Lf = x.shape[2] # frame length
@@ -83,15 +83,19 @@ class HarmonicOscillator(nn.Module):
 
         # Interpolate folmants
         formants = F.interpolate(formants, Lw, mode='linear')
+        formants = formants
 
         # Interpolate amp
         amps = F.interpolate(amps, Lw, mode='linear')
 
         # Generate harmonics
+        formants[:, :, 0:crop[0]] = 0
+        formants[:, :, crop[1]:-1] = 0
         dt = torch.cumsum(formants / self.sample_rate, dim=2)
         theta = 2 * math.pi * dt + phi
-        harmonics = torch.sin(theta) * amps
-        phi = torch.asin(torch.sin(theta))
+        harmonics = torch.sin(theta)
+        phi = torch.asin(harmonics)
+        harmonics = harmonics * amps
 
         # Sum all harmonics
         wave = harmonics.mean(dim=1, keepdim=True)
@@ -183,9 +187,9 @@ class Decoder(nn.Module):
         self.noise_generator = NoiseGenerator()
         self.post_filter = PostFilter()
 
-    def forward(self, x, f0, phi=0, post_filter_alpha=0, noise_amp=1, harmonics_amp=1):
+    def forward(self, x, f0, phi=0, post_filter_alpha=0, noise_amp=1, harmonics_amp=1, crop=(0, -1)):
         x = self.feature_extractor(x, f0)
-        harmonics, phi = self.harmonic_oscillator(x, f0, phi)
+        harmonics, phi = self.harmonic_oscillator(x, f0, phi, crop)
         noise = self.noise_generator(x)
         wave = harmonics * harmonics_amp + noise * noise_amp
         wave = self.post_filter(wave, post_filter_alpha)
