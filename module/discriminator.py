@@ -154,7 +154,7 @@ class ResolutionDiscriminator(nn.Module):
 
 
 class MultiResolutionDiscriminator(nn.Module):
-    def __init__(self, n_ffts=[512, 1024, 2048]):
+    def __init__(self, n_ffts=[2048, 4096, 8192]):
         super().__init__()
         self.sub_discriminators = nn.ModuleList([])
         for n_fft in n_ffts:
