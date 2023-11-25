@@ -77,13 +77,13 @@ def save_models(dec, dis):
 def cut_center(x):
     length = x.shape[2]
     center = length // 2
-    size = length // 4
+    size = length // 8
     return x[:, :, center-size:center+size]
 
 def cut_center_wav(x):
     length = x.shape[1]
     center = length // 2
-    size = length // 4
+    size = length // 8
     return x[:, center-size:center+size]
 
 
