@@ -103,7 +103,7 @@ OptD = optim.AdamW(D.parameters(), lr=args.learning_rate, betas=(0.8, 0.99))
 SchedulerG = torch.optim.lr_scheduler.CosineAnnealingLR(OptG, 5000)
 SchedulerD = torch.optim.lr_scheduler.CosineAnnealingLR(OptD, 5000)
 
-mel = torchaudio.transforms.MelSpectrogram(48000, n_fft=3840, hop_length=960, n_mels=192).to(device)
+mel = torchaudio.transforms.MelSpectrogram(48000, n_fft=3840, hop_length=960, n_mels=512).to(device)
 def log_mel(x):
     x = mel(x)
     x = torch.log(x + 1e-5)
@@ -128,12 +128,13 @@ for epoch in range(args.epoch):
                 else:
                     f0 = pe.estimate(spec)
                 content = ce(spec)
-            wave_recon, _ = dec(match_features(content, content), f0)
-            wave_fake, _ = dec(match_features(content, content.roll(1, dims=0)),
+            wave_recon, _, mel_out = dec(match_features(content, content), f0)
+            wave_fake, _, _= dec(match_features(content, content.roll(1, dims=0)),
                                    f0 * (1.0 + torch.rand(1, 1, device=device)))
             logits = D.logits(wave_fake) + D.logits(wave_recon)
             
-            loss_mel = (log_mel(wave_recon) - log_mel(wave)).abs().mean()
+            loss_mel = (log_mel(wave_recon) - log_mel(wave)).abs().mean() +\
+                    (mel_out - log_mel(wave)).abs().mean()
             loss_feat = D.feat_loss(cut_center_wav(wave_recon), cut_center_wav(wave))
             loss_con = (content - ce(spectrogram(wave_recon))).abs().mean()
 

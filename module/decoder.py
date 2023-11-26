@@ -32,6 +32,7 @@ class FeatureExtractor(nn.Module):
             hidden_channels=1536,
             num_layers=8,
             kernel_size=7,
+            mel_out_layer=3,
             ):
         super().__init__()
         self.input_layer = nn.Conv1d(input_channels, channels, 1)
@@ -39,13 +40,18 @@ class FeatureExtractor(nn.Module):
         scale = 1 / num_layers
         self.mid_layers = nn.ModuleList(
                 [ AdaptiveConvNeXt1d(channels, hidden_channels, channels, kernel_size, scale) for _ in range(num_layers)])
+        self.mel_out_layer = mel_out_layer
+        self.pad = nn.ReflectionPad1d([1, 0])
     
     def forward(self, x, f0):
         x = self.input_layer(x)
         condition = self.f0_encoder(f0)
-        for l in self.mid_layers:
+        mel = 0
+        for i, l in enumerate(self.mid_layers):
             x = l(x, condition)
-        return x
+            if i == self.mel_out_layer:
+                mel = x
+        return x, self.pad(mel)
 
 
 class HarmonicOscillator(nn.Module):
@@ -189,10 +195,10 @@ class Decoder(nn.Module):
         self.post_filter = PostFilter()
 
     def forward(self, x, f0, phi=0, post_filter_alpha=0, noise_amp=1, harmonics_amp=1, crop=(0, -1)):
-        x = self.feature_extractor(x, f0)
+        x, mel = self.feature_extractor(x, f0)
         harmonics, phi = self.harmonic_oscillator(x, f0, phi, crop)
         noise = self.noise_generator(x)
         wave = harmonics * harmonics_amp + noise * noise_amp
         wave = self.post_filter(wave, post_filter_alpha)
         wave = wave.squeeze(1)
-        return wave, phi
+        return wave, phi, mel
