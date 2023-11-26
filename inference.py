@@ -145,8 +145,8 @@ for i, path in enumerate(paths):
     mel_hq = torchaudio.transforms.MelSpectrogram(
             sample_rate=sr,
             n_fft=1280,
-            hop_length=160,
-            n_mels=128
+            hop_length=320,
+            n_mels=160
             )
 
     def log_mel_hq(x, eps=1e-5):
