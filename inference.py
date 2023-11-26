@@ -7,6 +7,7 @@ import glob
 import torch
 import torch.nn.functional as F
 from tqdm import tqdm
+import matplotlib.pyplot as plt
 
 from module.spectrogram import spectrogram
 from module.f0_estimator import F0Estimator
@@ -14,6 +15,7 @@ from module.content_encoder import ContentEncoder
 from module.decoder import Decoder
 from module.common import match_features, compute_f0
 from module.voice_library import VoiceLibrary
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-i', '--inputs', default="./inputs/")
@@ -41,6 +43,16 @@ parser.add_argument('-norm', '--normalize', default=False, type=bool)
 args = parser.parse_args()
 
 device = torch.device(args.device)
+
+# Plot spectrogram
+def plot_spec(x, save_path="./spectrogram.png", log=False):
+    plt.figure()
+    x = x[0]
+    x = x.flip(dims=(0,))
+    plt.imshow(x)
+    plt.savefig(save_path, dpi=200)
+    plt.close()
+
 
 PE = F0Estimator().to(device)
 CE = ContentEncoder().to(device)
@@ -74,6 +86,7 @@ print(f"Loaded {tgt.shape[2]} words.")
 paths = glob.glob(os.path.join(args.inputs, "*"))
 for i, path in enumerate(paths):
     wf, sr = torchaudio.load(path)
+    wf_in = wf
     wf = wf.to('cpu')
     wf = torchaudio.functional.resample(wf, sr, 48000)
     wf = wf / wf.abs().max()
@@ -126,4 +139,18 @@ for i, path in enumerate(paths):
     wf = wf.cpu().detach()
     if args.normalize:
         wf = wf / wf.abs().max()
-    torchaudio.save(os.path.join("./outputs/", f"{os.path.splitext(os.path.basename(path))[0]}.wav"), src=wf, sample_rate=sr)
+    file_name = f"{i}_{os.path.splitext(os.path.basename(path))[0]}"
+    torchaudio.save(os.path.join(args.outputs, f"{file_name}.wav"), src=wf, sample_rate=sr)
+
+    mel_hq = torchaudio.transforms.MelSpectrogram(
+            sample_rate=sr,
+            n_fft=3840,
+            hop_length=240,
+            n_mels=256
+            )
+
+    def log_mel_hq(x, eps=1e-5):
+        return torch.log(mel_hq(x) + eps)[:, :, 1:]
+
+    plot_spec(log_mel_hq(wf), os.path.join(args.outputs, f"{file_name}_output_spec.png"))
+    plot_spec(log_mel_hq(wf_in), os.path.join(args.outputs, f"{file_name}_input_spec.png"))
