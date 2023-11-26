@@ -70,7 +70,7 @@ if args.target != "NONE":
     print("loading target...")
     wf, sr = torchaudio.load(args.target)
     wf = wf.to(device)
-    wf = torchaudio.functional.resample(wf, sr, 48000)
+    wf = torchaudio.functional.resample(wf, sr, 16000)
     wf = wf / wf.abs().max()
     wf = wf[:1]
     tgt = CE(spectrogram(wf)).detach()
@@ -88,7 +88,7 @@ for i, path in enumerate(paths):
     wf, sr = torchaudio.load(path)
     wf_in = wf
     wf = wf.to('cpu')
-    wf = torchaudio.functional.resample(wf, sr, 48000)
+    wf = torchaudio.functional.resample(wf, sr, 16000)
     wf = wf / wf.abs().max()
     wf = wf.mean(dim=0, keepdim=True)
     total_length = wf.shape[1]
@@ -134,7 +134,7 @@ for i, path in enumerate(paths):
 
             result.append(chunk.to('cpu'))
         wf = torch.cat(result, dim=1)[:, :total_length]
-        wf = torchaudio.functional.resample(wf, 48000, sr)
+        wf = torchaudio.functional.resample(wf, 16000, sr)
         wf = torchaudio.functional.gain(wf, args.gain)
     wf = wf.cpu().detach()
     if args.normalize:
@@ -144,9 +144,9 @@ for i, path in enumerate(paths):
 
     mel_hq = torchaudio.transforms.MelSpectrogram(
             sample_rate=sr,
-            n_fft=3840,
-            hop_length=240,
-            n_mels=256
+            n_fft=1280,
+            hop_length=160,
+            n_mels=128
             )
 
     def log_mel_hq(x, eps=1e-5):

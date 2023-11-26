@@ -86,11 +86,11 @@ class PeriodicDiscriminator(nn.Module):
 class MultiPeriodicDiscriminator(nn.Module):
     def __init__(self,
                  periods=[2, 3, 5, 7, 11, 17, 23, 37],
-                 groups=[1, 4, 8, 8, 8, 8, 8],
+                 groups=[1, 4, 8, 8, 8, 8],
                  channels=64,
                  kernel_size=5,
                  stride=3,
-                 num_stages=6,
+                 num_stages=5,
                  ):
         super().__init__()
         self.sub_discriminators = nn.ModuleList([])
@@ -154,7 +154,7 @@ class ResolutionDiscriminator(nn.Module):
 
 
 class MultiResolutionDiscriminator(nn.Module):
-    def __init__(self, n_ffts=[2048, 4096, 8192]):
+    def __init__(self, n_ffts=[512, 1024, 2048]):
         super().__init__()
         self.sub_discriminators = nn.ModuleList([])
         for n_fft in n_ffts:

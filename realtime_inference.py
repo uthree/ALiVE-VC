@@ -43,9 +43,9 @@ parser.add_argument('-a', '--alpha', default=0.0, type=float)
 parser.add_argument('-fp16', default=False, type=bool)
 parser.add_argument('-lib', '--voice-library-path', default="NONE")
 parser.add_argument('-wpe', '--world-pitch-estimation', default=False, type=bool)
-parser.add_argument('-isr', '--input-sr', default=24000, type=int)
-parser.add_argument('-osr', '--output-sr', default=24000, type=int)
-parser.add_argument('-lsr', '--loopback-sr', default=24000, type=int)
+parser.add_argument('-isr', '--input-sr', default=16000, type=int)
+parser.add_argument('-osr', '--output-sr', default=16000, type=int)
+parser.add_argument('-lsr', '--loopback-sr', default=16000, type=int)
 
 
 
@@ -120,7 +120,7 @@ print("converting voice...")
 print("")
 bar = tqdm()
 
-downsample_rate = 48000 / args.output_sr
+downsample_rate = 16000 / args.output_sr
 internal_chunk = int(chunk * downsample_rate)
 center = int(internal_chunk * buffer_size) // 2
 end_of_output = center + internal_chunk // 2 + 1
@@ -145,7 +145,7 @@ while True:
     with torch.inference_mode():
         with torch.cuda.amp.autocast(enabled=args.fp16):
             # Downsample
-            data = torchaudio.functional.resample(data, args.input_sr, 48000)
+            data = torchaudio.functional.resample(data, args.input_sr, 16000)
             data = torchaudio.functional.gain(data, args.input_gain)
 
             # to spectrogram
@@ -175,7 +175,7 @@ while True:
             # gain
             data = torchaudio.functional.gain(data, args.gain)
             # Upsample
-            data = torchaudio.functional.resample(data, 48000, args.output_sr)
+            data = torchaudio.functional.resample(data, 16000, args.output_sr)
 
             data = data[0]
 

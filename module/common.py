@@ -120,7 +120,7 @@ def compute_f0_dio(wf, sample_rate=8000, segment_size=256, f0_min=20, f0_max=409
         return pitchs
 
 
-def compute_f0(wf, sample_rate=48000, segment_size=960):
+def compute_f0(wf, sample_rate=16000, segment_size=320):
     l = wf.shape[1]
     wf = resample(wf, sample_rate, 8000)
     pitchs = compute_f0_dio(wf, 8000)

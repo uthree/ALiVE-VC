@@ -52,8 +52,8 @@ class HarmonicOscillator(nn.Module):
     def __init__(self,
                  channels=512,
                  num_harmonics=64,
-                 segment_size=960,
-                 sample_rate=48000,
+                 segment_size=320,
+                 sample_rate=16000,
                  ):
         super().__init__()
         self.num_harmonics = num_harmonics
@@ -107,8 +107,8 @@ class HarmonicOscillator(nn.Module):
 class NoiseGenerator(nn.Module):
     def __init__(self,
                  input_channels=512,
-                 n_fft=3840,
-                 hop_length=960):
+                 n_fft=1280,
+                 hop_length=320):
         super().__init__()
         self.to_mag_phase = nn.Conv1d(input_channels, n_fft+2, 1)
         self.hop_length = hop_length
