@@ -128,14 +128,14 @@ for epoch in range(args.epoch):
                 else:
                     f0 = pe.estimate(spec)
                 content = ce(spec)
-            wave_recon, _ = dec(match_features(cut_center(content), content), cut_center(f0))
-            wave_fake, _ = dec(match_features(cut_center(content), content.roll(1, dims=0)),
-                                   cut_center(f0) * (1.0 + torch.rand(1, 1, device=device)))
+            wave_recon, _ = dec(match_features(content, content), f0)
+            wave_fake, _ = dec(match_features(content, content.roll(1, dims=0)),
+                                   f0 * (1.0 + torch.rand(1, 1, device=device)))
             logits = D.logits(wave_fake) + D.logits(wave_recon)
             
-            loss_mel = (log_mel(wave_recon) - log_mel(cut_center_wav(wave))).abs().mean()
-            loss_feat = D.feat_loss(wave_recon, cut_center_wav(wave))
-            loss_con = (cut_center(content) - ce(spectrogram(wave_recon))).abs().mean()
+            loss_mel = (log_mel(wave_recon) - log_mel(wave)).abs().mean()
+            loss_feat = D.feat_loss(cut_center_wav(wave_recon), cut_center_wav(wave))
+            loss_con = (content - ce(spectrogram(wave_recon))).abs().mean()
 
             loss_adv = 0
             for logit in logits:
@@ -149,7 +149,7 @@ for epoch in range(args.epoch):
         OptD.zero_grad()
         wave_fake = wave_fake.detach()
         with torch.cuda.amp.autocast(enabled=args.fp16):
-            logits_fake = D.logits(wave_fake)
+            logits_fake = D.logits(cut_center_wav(wave_fake))
             logits_real = D.logits(cut_center_wav(wave))
             loss_d = 0
             for logit in logits_real:
