@@ -30,21 +30,46 @@ class FeatureExtractor(nn.Module):
             input_channels=768,
             channels=512,
             hidden_channels=1536,
-            num_layers=8,
+            num_layers=6,
             kernel_size=7,
             ):
         super().__init__()
         self.input_layer = nn.Conv1d(input_channels, channels, 1)
-        self.f0_encoder = F0Encoder(channels)
         scale = 1 / num_layers
         self.mid_layers = nn.ModuleList(
-                [ AdaptiveConvNeXt1d(channels, hidden_channels, channels, kernel_size, scale) for _ in range(num_layers)])
+                [ ConvNeXt1d(channels, hidden_channels, kernel_size, scale) for _ in range(num_layers)])
+    
+    def forward(self, x):
+        x = self.input_layer(x)
+        for l in self.mid_layers:
+            x = l(x)
+        return x
+
+
+class HarmonicAmplitudeEstimator(nn.Module):
+    def __init__(
+            self,
+            input_channels=512,
+            channels=256,
+            hidden_channels=768,
+            num_harmonics=64,
+            num_layers=4,
+            kernel_size=7,
+            ):
+        super().__init__()
+        self.input_layer = nn.Conv1d(input_channels, channels, 1)
+        self.f0_enc = F0Encoder(channels)
+        scale = 1 / num_layers
+        self.mid_layers = nn.ModuleList(
+                [AdaptiveConvNeXt1d(channels, hidden_channels, channels, kernel_size, scale) for _ in range(num_layers)])
+        self.output_layer = nn.Conv1d(channels, num_harmonics, 1)
     
     def forward(self, x, f0):
         x = self.input_layer(x)
-        condition = self.f0_encoder(f0)
+        c = self.f0_enc(f0)
         for l in self.mid_layers:
-            x = l(x, condition)
+            x = l(x, c)
+        x = self.output_layer(x)
         return x
 
 
@@ -60,7 +85,7 @@ class HarmonicOscillator(nn.Module):
         self.segment_size = segment_size
         self.sample_rate = sample_rate
 
-        self.to_amps = nn.Conv1d(channels, num_harmonics, 1)
+        self.to_amps = HarmonicAmplitudeEstimator(channels, num_harmonics=num_harmonics)
     
     # x: [N, input_channels, Lf]
     def forward(self, x, f0, phi=0, crop=(0, -1)):
@@ -70,7 +95,7 @@ class HarmonicOscillator(nn.Module):
         Lw = Lf * self.segment_size # wave length
 
         # to amplitudes
-        amps = self.to_amps(x)
+        amps = self.to_amps(x, f0)
 
         # magnitude to amplitude
         amps = torch.exp(amps)
@@ -189,7 +214,7 @@ class Decoder(nn.Module):
         self.post_filter = PostFilter()
 
     def forward(self, x, f0, phi=0, post_filter_alpha=0, noise_amp=1, harmonics_amp=1, crop=(0, -1)):
-        x = self.feature_extractor(x, f0)
+        x = self.feature_extractor(x)
         harmonics, phi = self.harmonic_oscillator(x, f0, phi, crop)
         noise = self.noise_generator(x)
         wave = harmonics * harmonics_amp + noise * noise_amp
