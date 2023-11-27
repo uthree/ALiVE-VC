@@ -146,7 +146,7 @@ for i, path in enumerate(paths):
             sample_rate=sr,
             n_fft=1280,
             hop_length=320,
-            n_mels=160
+            n_mels=80
             )
 
     def log_mel_hq(x, eps=1e-5):

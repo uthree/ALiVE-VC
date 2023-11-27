@@ -103,7 +103,7 @@ OptD = optim.AdamW(D.parameters(), lr=args.learning_rate, betas=(0.8, 0.99))
 SchedulerG = torch.optim.lr_scheduler.CosineAnnealingLR(OptG, 5000)
 SchedulerD = torch.optim.lr_scheduler.CosineAnnealingLR(OptD, 5000)
 
-mel = torchaudio.transforms.MelSpectrogram(16000, n_fft=1280, hop_length=320, n_mels=160).to(device)
+mel = torchaudio.transforms.MelSpectrogram(16000, n_fft=1280, hop_length=320, n_mels=80).to(device)
 def log_mel(x):
     x = mel(x)
     x = torch.log(x + 1e-5)
