@@ -29,8 +29,8 @@ class FeatureExtractor(nn.Module):
             self,
             input_channels=768,
             channels=512,
-            hidden_channels=1024,
-            num_layers=4,
+            hidden_channels=1536,
+            num_layers=6,
             kernel_size=7,
             ):
         super().__init__()
@@ -141,7 +141,7 @@ class Filter(nn.Module):
             self,
             feat_channels=512,
             rates=[2, 2, 8, 10],
-            channels=[8, 16, 64, 128],
+            channels=[8, 16, 32, 64],
             kernel_size=5,
             num_layers=3
             ):
