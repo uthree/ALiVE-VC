@@ -30,7 +30,7 @@ parser.add_argument('-d', '--device', default='cpu')
 parser.add_argument('-e', '--epoch', default=1000, type=int)
 parser.add_argument('-b', '--batch-size', default=1, type=int)
 parser.add_argument('-lr', '--learning-rate', default=1e-4, type=float)
-parser.add_argument('-len', '--length', default=76800, type=int)
+parser.add_argument('-len', '--length', default=19200, type=int)
 parser.add_argument('-m', '--max-data', default=-1, type=int)
 parser.add_argument('-fp16', default=False, type=bool)
 parser.add_argument('-gacc', '--gradient-accumulation', default=1, type=int)
@@ -128,8 +128,8 @@ for epoch in range(args.epoch):
                 else:
                     f0 = pe.estimate(spec)
                 content = ce(spec)
-            wave_recon, _ = dec(match_features(content, content), f0)
-            wave_fake, _ = dec(match_features(content, content.roll(1, dims=0)),
+            wave_recon = dec(match_features(content, content), f0)
+            wave_fake = dec(match_features(content, content.roll(1, dims=0)),
                                    f0 * (1.0 + torch.rand(1, 1, device=device)))
             logits = D.logits(wave_fake) + D.logits(wave_recon)
             

@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.utils import weight_norm, remove_weight_norm
-from module.common import ConvNeXt1d, AdaptiveConvNeXt1d
+from module.common import ConvNeXt1d, AdaptiveConvNeXt1d, CausalConv1d
 import math
 
 
@@ -29,8 +29,8 @@ class FeatureExtractor(nn.Module):
             self,
             input_channels=768,
             channels=512,
-            hidden_channels=1536,
-            num_layers=8,
+            hidden_channels=1024,
+            num_layers=4,
             kernel_size=7,
             ):
         super().__init__()
@@ -104,80 +104,81 @@ class HarmonicOscillator(nn.Module):
         return wave, phi
 
 
-class NoiseGenerator(nn.Module):
-    def __init__(self,
-                 input_channels=512,
-                 n_fft=1280,
-                 hop_length=320):
+class ModulatedCausalConv1d(nn.Module):
+    def __init__(self, input_channels, output_channels, condition_channels, kernel_size=5, dilation=1):
         super().__init__()
-        self.to_mag_phase = nn.Conv1d(input_channels, n_fft+2, 1)
-        self.hop_length = hop_length
-        self.n_fft = n_fft
-        self.pad = nn.ReflectionPad1d([1, 0])
+        self.conv = CausalConv1d(input_channels, output_channels, kernel_size, dilation)
+        self.to_scale = nn.Conv1d(condition_channels, input_channels, 1)
+        self.to_shift = nn.Conv1d(condition_channels, input_channels, 1)
 
-    def mag_phase(self, x):
-        x = self.pad(x)
-        x = self.to_mag_phase(x)
-        return x.chunk(2, dim=1)
-
-    def forward(self, x):
-        dtype = x.dtype
-        mag, phase = self.mag_phase(x)
-        mag = mag.to(torch.float)
-        phase = phase.to(torch.float)
-        mag = torch.clamp_max(mag, 6.0)
-        mag = torch.exp(mag)
-        phase = torch.cos(phase) + 1j * torch.sin(phase)
-        s = mag * phase
-        wf = torch.istft(s, self.n_fft, hop_length=self.hop_length, center=True)
-        wf = wf.unsqueeze(1)
-        return wf
-
-
-class CausalConv1d(nn.Module):
-    def __init__(self, input_channels, output_channels, kernel_size=5, dilation=1):
-        super().__init__()
-        self.pad = nn.ReflectionPad1d([kernel_size*dilation-dilation, 0])
-        self.conv = nn.Conv1d(input_channels, output_channels, kernel_size, dilation=dilation)
-
-    def forward(self, x):
-        return self.conv(self.pad(x))
-
-
-class DilatedCausalConvStack(nn.Module):
-    def __init__(self, input_channels, output_channels, kernel_size=5, num_layers=3):
-        super().__init__()
-        self.convs = nn.ModuleList([])
-        self.convs.append(nn.Conv1d(input_channels, output_channels, kernel_size, padding=kernel_size//2))
-        for d in range(num_layers-1):
-            dilation = 2**(1+d)
-            self.convs.append(CausalConv1d(output_channels, output_channels, kernel_size, dilation=dilation))
-
-    def forward(self, x):
-        for c in self.convs:
-            F.gelu(x)
-            x = c(x)
+    def forward(self, x, c):
+        scale = self.to_scale(c)
+        shift = self.to_shift(c)
+        scale = F.interpolate(scale, x.shape[2], mode='linear')
+        shift = F.interpolate(shift, x.shape[2], mode='linear')
+        x = x * scale + shift
+        x = self.conv(x)
         return x
 
 
-class PostFilter(nn.Module):
+class FilterBlock(nn.Module):
+    def __init__(self, input_channels, output_channels, condition_channels, kernel_size=5, num_layers=3):
+        super().__init__()
+        self.convs = nn.ModuleList([])
+        self.convs.append(ModulatedCausalConv1d(input_channels, output_channels, condition_channels, kernel_size, 1))
+        for d in range(num_layers-1):
+            self.convs.append(ModulatedCausalConv1d(output_channels, output_channels, condition_channels, kernel_size, 2**(d+1)))
+
+    def forward(self, x, c):
+        for conv in self.convs:
+            F.gelu(x)
+            x = conv(x, c)
+        return x
+
+
+class Filter(nn.Module):
     def __init__(
             self,
-            channels=8,
-            kernel_size=7,
-            num_layers=6,
+            feat_channels=512,
+            rates=[2, 2, 8, 10],
+            channels=[8, 16, 64, 128],
+            kernel_size=5,
+            num_layers=3
             ):
         super().__init__()
-        self.input_layer = nn.Conv1d(1, channels, 1, 1)
-        self.mid_layer = DilatedCausalConvStack(channels, channels, kernel_size, num_layers)
-        self.output_layer = nn.Conv1d(channels, 1, 1)
+        self.source_in = nn.Conv1d(1, channels[0], 7, 1, 3)
+        self.downs = nn.ModuleList([])
+        self.ups = nn.ModuleList([])
+        self.blocks = nn.ModuleList([])
 
-    def forward(self, x, alpha=0):
-        res = x
-        x = self.input_layer(x)
-        x = self.mid_layer(x)
-        x = self.output_layer(x)
-        return res + x * (1 - alpha)
+        channels_nexts = channels[1:] + [channels[-1]]
+        for c, c_next, r in zip(channels, channels_nexts, rates):
+            self.downs.append(nn.Conv1d(c, c_next, r, r, 0))
+
+        channels = list(reversed(channels))
+        rates = list(reversed(rates))
+        channels_prevs = [channels[0]] + channels[:-1]
+        
+        for c, c_prev, r in zip(channels, channels_prevs, rates):
+            self.ups.append(nn.ConvTranspose1d(c_prev, c, r, r, 0))
+            self.blocks.append(FilterBlock(c, c, feat_channels, kernel_size, num_layers))
+
+        self.source_out = nn.Conv1d(c, 1, 7, 1, 3)
+    
+    # x: [N, 1, Lw], c: [N, channels, Lf]
+    def forward(self, x, c):
+        skips = []
+        x = self.source_in(x)
+        for d in self.downs:
+            x = d(x)
+            skips.append(x)
+
+        for u, b, s in zip(self.ups, self.blocks, reversed(skips)):
+            x = u(x + s)
+            x = b(x, c)
+        x = self.source_out(x)
+        x = F.tanh(x)
+        return x
 
 
 class Decoder(nn.Module):
@@ -185,14 +186,11 @@ class Decoder(nn.Module):
         super().__init__()
         self.feature_extractor = FeatureExtractor()
         self.harmonic_oscillator = HarmonicOscillator()
-        self.noise_generator = NoiseGenerator()
-        self.post_filter = PostFilter()
+        self.filter = Filter()
 
-    def forward(self, x, f0, phi=0, post_filter_alpha=0, noise_amp=1, harmonics_amp=1, crop=(0, -1)):
+    def forward(self, x, f0, t0=0, harmonics_scale=1):
         x = self.feature_extractor(x, f0)
-        harmonics, phi = self.harmonic_oscillator(x, f0, phi, crop)
-        noise = self.noise_generator(x)
-        wave = harmonics * harmonics_amp + noise * noise_amp
-        wave = self.post_filter(wave, post_filter_alpha)
-        wave = wave.squeeze(1)
-        return wave, phi
+        source, phi = self.harmonic_oscillator(x, f0, t0) * harmonics_scale
+        out = self.filter(source, x)
+        out = out.squeeze(1)
+        return out

@@ -82,6 +82,16 @@ class AdaptiveConvNeXt1d(nn.Module):
         return x + res
 
 
+class CausalConv1d(nn.Module):
+    def __init__(self, input_channels, output_channels, kernel_size=5, dilation=1):
+        super().__init__()
+        self.pad = nn.ReflectionPad1d([kernel_size*dilation-dilation, 0])
+        self.conv = nn.Conv1d(input_channels, output_channels, kernel_size, dilation=dilation)
+
+    def forward(self, x):
+        return self.conv(self.pad(x))
+
+
 # helper functions
 def match_features(source, reference, k=4, alpha=0.0):
     input_data = source

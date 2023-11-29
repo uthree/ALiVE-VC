@@ -127,7 +127,7 @@ for i, path in enumerate(paths):
 
             feat = CE(spec)
             feat = match_features(feat, tgt, k=args.k, alpha=args.alpha)
-            chunk, _ = Dec(feat, f0 * args.f0_rate, 0,
+            chunk = Dec(feat, f0 * args.f0_rate, 0,
                         args.post_filter_alpha, args.noise_amp, args.harmonics_amp)
             
             chunk = chunk[:, args.chunk:-args.chunk]
