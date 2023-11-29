@@ -30,7 +30,7 @@ parser.add_argument('-d', '--device', default='cpu')
 parser.add_argument('-e', '--epoch', default=1000, type=int)
 parser.add_argument('-b', '--batch-size', default=1, type=int)
 parser.add_argument('-lr', '--learning-rate', default=1e-4, type=float)
-parser.add_argument('-len', '--length', default=19200, type=int)
+parser.add_argument('-len', '--length', default=38400, type=int)
 parser.add_argument('-m', '--max-data', default=-1, type=int)
 parser.add_argument('-fp16', default=False, type=bool)
 parser.add_argument('-gacc', '--gradient-accumulation', default=1, type=int)
@@ -150,8 +150,7 @@ for epoch in range(args.epoch):
                 wave_recon, _ = dec(VL.match(content), f0)
             else:
                 wave_recon, _ = dec(match_features(content, content), f0)
-            logits = D.logits(wave_recon)
-
+            logits = D.logits(cut_center_wav(wave_recon))
             
             loss_mel = (log_mel(wave_recon) - log_mel(wave)).abs().mean()
             loss_feat = D.feat_loss(cut_center_wav(wave_recon), cut_center_wav(wave))
