@@ -128,8 +128,8 @@ for epoch in range(args.epoch):
                 else:
                     f0 = pe.estimate(spec)
                 content = ce(spec)
-            wave_recon = dec(match_features(content, content), f0)
-            wave_fake = dec(match_features(content, content.roll(1, dims=0)),
+            wave_recon, _ = dec(match_features(content, content), f0)
+            wave_fake, _ = dec(match_features(content, content.roll(1, dims=0)),
                                    f0 * (0.5 + torch.rand(1, 1, device=device)))
             logits = D.logits(cut_center_wav(wave_fake)) + D.logits(cut_center_wav(wave_recon))
             

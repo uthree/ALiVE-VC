@@ -147,9 +147,9 @@ for epoch in range(args.epoch):
                 content = ce(spec)
 
             if VL_mode:
-                wave_recon = dec(VL.match(content), f0)
+                wave_recon, _ = dec(VL.match(content), f0)
             else:
-                wave_recon = dec(match_features(content, content), f0)
+                wave_recon, _ = dec(match_features(content, content), f0)
             logits = D.logits(cut_center_wav(wave_recon))
             
             loss_mel = (log_mel(wave_recon) - log_mel(wave)).abs().mean()

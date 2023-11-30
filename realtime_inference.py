@@ -31,7 +31,7 @@ parser.add_argument('-dep', '--decoder-path', default="decoder.pt")
 parser.add_argument('-cep', '--content-encoder-path', default="content_encoder.pt")
 parser.add_argument('-f0ep', '--f0-estimator-path', default="f0_estimator.pt")
 parser.add_argument('-b', '--buffersize', default=8, type=int)
-parser.add_argument('-c', '--chunk', default=1920, type=int)
+parser.add_argument('-c', '--chunk', default=1024, type=int)
 parser.add_argument('-ic', '--inputchannels', default=1, type=int)
 parser.add_argument('-oc', '--outputchannels', default=1, type=int)
 parser.add_argument('-lc', '--loopbackchannels', default=1, type=int)
@@ -123,9 +123,8 @@ bar = tqdm()
 downsample_rate = 16000 / args.output_sr
 internal_chunk = int(chunk * downsample_rate)
 center = int(internal_chunk * buffer_size) // 2
-end_of_output = center + internal_chunk // 2 + 1
-begin_of_output = center - internal_chunk // 2
-print(end_of_output)
+end_of_output = center + internal_chunk // 2 - 1
+begin_of_output = center - internal_chunk // 2 - 1 
 
 phi = 0
 
@@ -162,11 +161,10 @@ while True:
             pitch = pitch + args.pitch
 
             f0 = 440 * 2 ** ((pitch + 9) / 12) # Convert pitch to f0
-            f0[torch.logical_or(f0.isnan(), f0.isinf())] = 00
+            f0[torch.logical_or(f0.isnan(), f0.isinf())] = 0
             
             content = match_features(content, tgt, k=args.k, alpha=args.alpha)
-            data, phi_out = Dec(content, f0=f0, phi=phi,
-                                crop=(begin_of_output, end_of_output-1))
+            data, phi_out = Dec(content, f0=f0, phi=phi, crop=(begin_of_output, end_of_output))
             phi = phi_out[:, :, end_of_output].unsqueeze(2)
 
             pitch_center = f0.shape[2] // 2
@@ -186,6 +184,7 @@ while True:
     center = buffer_size * chunk // 2
     s = center - chunk // 2
     e = center + chunk // 2
+    print(e, end_of_output, s, begin_of_output)
     data = data[s:e]
     data = data.tobytes()
     stream_output.write(data)
