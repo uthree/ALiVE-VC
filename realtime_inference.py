@@ -184,7 +184,6 @@ while True:
     center = buffer_size * chunk // 2
     s = center - chunk // 2
     e = center + chunk // 2
-    print(e, end_of_output, s, begin_of_output)
     data = data[s:e]
     data = data.tobytes()
     stream_output.write(data)
