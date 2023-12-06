@@ -16,7 +16,7 @@ def extract_hubert_feature(wavlm, wave, sr=16000, segment_size=320):
     length = wave.shape[1] // segment_size
     wave = resample(wave, sr, 16000)
     hidden_states = wavlm(wave, output_hidden_states=True).hidden_states
-    feature = hidden_states[4]
+    feature = (hidden_states[4] + hidden_states[9]) * 0.5
     feature = feature.transpose(1, 2)
     feature = F.interpolate(feature, length, mode='linear')
     return feature
