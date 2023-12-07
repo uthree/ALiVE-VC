@@ -30,7 +30,7 @@ class FeatureExtractor(nn.Module):
             input_channels=768,
             channels=512,
             hidden_channels=1536,
-            num_layers=6,
+            num_layers=4,
             kernel_size=7,
             ):
         super().__init__()
@@ -110,7 +110,7 @@ class ModulatedCausalConv1d(nn.Module):
         self.to_shift = nn.Conv1d(condition_channels, input_channels, 1)
 
     def forward(self, x, c):
-        scale = self.to_scale(c)
+        scale = self.to_scale(c) + 1
         shift = self.to_shift(c)
         scale = F.interpolate(scale, x.shape[2], mode='linear')
         shift = F.interpolate(shift, x.shape[2], mode='linear')
@@ -146,6 +146,7 @@ class Filter(nn.Module):
         super().__init__()
         self.source_in = nn.Conv1d(1, channels[0], 7, 1, 3)
         self.downs = nn.ModuleList([])
+        self.mid_conv = CausalConv1d(channels[-1], channels[-1], kernel_size)
         self.ups = nn.ModuleList([])
         self.blocks = nn.ModuleList([])
 
@@ -170,7 +171,7 @@ class Filter(nn.Module):
         for d in self.downs:
             x = d(x)
             skips.append(x)
-
+        x = self.mid_conv(x)
         for u, b, s in zip(self.ups, self.blocks, reversed(skips)):
             x = u(x + s)
             x = b(x, c)

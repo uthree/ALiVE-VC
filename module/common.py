@@ -93,7 +93,7 @@ class CausalConv1d(nn.Module):
 
 
 # helper functions
-def match_features(source, reference, k=4, alpha=0.0):
+def match_features(source, reference, k=4, alpha=0.2):
     input_data = source
     with torch.no_grad():
         # source: [N, 768, Length], reference: [N, 768, Length]
