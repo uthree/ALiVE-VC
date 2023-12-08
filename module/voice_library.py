@@ -12,7 +12,7 @@ class VoiceLibrary(nn.Module):
     def forward(self, source):
         return self.match(source)
 
-    def match(self, source, k=4, alpha=0.2):
+    def match(self, source, k=4, alpha=0.0):
         reference = self.tokens.expand(
                 source.shape[0],
                 self.hubert_dim,
