@@ -192,3 +192,37 @@ class Decoder(nn.Module):
         out = self.filter(source, x)
         out = out.squeeze(1)
         return out, phi
+
+
+# Onnx Wrappers
+
+class FeatureExtractorOnnxWrapper(nn.Module):
+    def __init__(self, model: FeatureExtractor):
+        super().__init__()
+        self.model = model
+
+    def forward(self, x, f0):
+        return self.model(x, f0)
+
+
+class HarmonicOscillatorOnnxWrapper(nn.Module):
+    def __init__(self, model: HarmonicOscillator, segment_size=320):
+        super().__init__()
+        self.model = model
+        self.segment_size = segment_size
+
+    def forward(self, x):
+        Lf = x.shape[2] # frame length
+        Lw = Lf * self.segment_size # wave length
+        amps = self.model.to_amps(x)
+        amps = F.interpolate(amps, Lw, mode='linear')
+        return amps
+
+
+class FilterOnnxWrapper(nn.Module):
+    def __init__(self, model: Filter):
+        super().__init__()
+        self.model = model
+    
+    def forward(self, x, c):
+        return self.model(x, c).squeeze(1)
