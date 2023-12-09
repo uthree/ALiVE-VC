@@ -39,7 +39,7 @@ parser.add_argument('--mel', default=45, type=float)
 parser.add_argument('--content', default=1, type=float)
 parser.add_argument('-wpe', '--world-pitch-estimation', default=False, type=bool)
 parser.add_argument('--max-step', default=-1, type=int)
-parser.add_argument('-lib', '--voice-library-path', default="NONE")
+parser.add_argument('-lib', '--voice-library-path', default="voice_library.pt")
 parser.add_argument('-fd', '--freeze-discriminator', default=False)
 
 args = parser.parse_args()

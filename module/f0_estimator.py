@@ -34,7 +34,7 @@ class F0Estimator(nn.Module):
             return f0
 
 
-class PitchEstimatorOnnxWraper(nn.Module):
+class F0EstimatorOnnxWraper(nn.Module):
     def __init__(self, pe):
         super().__init__()
         self.pe = pe

@@ -9,10 +9,8 @@ import torch.nn.functional as F
 from tqdm import tqdm
 
 from module.spectrogram import spectrogram
-from module.pitch_estimator import PitchEstimator, PitchEstimatorOnnxWraper
+from module.f0_estimator import F0Estimator, F0EstimatorOnnxWraper
 from module.content_encoder import ContentEncoder
-from module.decoder import Decoder, DecoderOnnxWrapper
-from module.common import match_features, compute_f0, compute_amplitude
 from module.voice_library import VoiceLibrary
 
 parser = argparse.ArgumentParser()
@@ -20,20 +18,18 @@ parser.add_argument('-o', '--outputs', default="./onnx/")
 parser.add_argument('-dep', '--decoder-path', default="decoder.pt")
 parser.add_argument('-disp', '--discriminator-path', default="discriminator.pt")
 parser.add_argument('-cep', '--content-encoder-path', default="content_encoder.pt")
-parser.add_argument('-pep', '--pitch-estimator-path', default="pitch_estimator.pt")
-parser.add_argument('-lib', '--voice-library-path', default="NONE")
+parser.add_argument('-f0ep', '--f0-estimator-path', default="f0_estimator.pt")
+parser.add_argument('-lib', '--voice-library-path', default="voice_library.pt")
 
 args = parser.parse_args()
 
 device = torch.device('cpu')
 
-PE = PitchEstimator().to(device)
+PE = F0Estimator().to(device)
 CE = ContentEncoder().to(device)
-Dec = Decoder().to(device)
-PE.load_state_dict(torch.load(args.pitch_estimator_path, map_location=device))
+PE.load_state_dict(torch.load(args.f0_estimator_path, map_location=device))
 CE.load_state_dict(torch.load(args.content_encoder_path, map_location=device))
-Dec.load_state_dict(torch.load(args.decoder_path, map_location=device))
-Dec = DecoderOnnxWrapper(Dec)
+
 
 if not os.path.exists(args.outputs):
     os.mkdir(args.outputs)
@@ -47,12 +43,12 @@ if args.voice_library_path != "NONE":
 print("Exporting ONNX...")
 
 print("Exporting Pitch Estimator...")
-dummy_input = torch.randn(1, 513, 256)
-PE = PitchEstimatorOnnxWraper(PE)
+dummy_input = torch.randn(1, 641, 256)
+PE = F0EstimatorOnnxWraper(PE)
 torch.onnx.export(
         PE,
         dummy_input,
-        os.path.join(args.outputs, "pitch_estimator.onnx"),
+        os.path.join(args.outputs, "f0_estimator.onnx"),
         opset_version=15,
         input_names=["input"],
         output_names=["output"],
@@ -61,7 +57,7 @@ torch.onnx.export(
             })
 
 print("Exporting Content Encoder...")
-dummy_input = torch.randn(1, 513, 256)
+dummy_input = torch.randn(1, 641, 256)
 torch.onnx.export(
         CE,
         dummy_input,
@@ -73,36 +69,3 @@ torch.onnx.export(
             "input": {0: "barch_size", 2: "length"}
             })
 
-print("Exporting Decoder...")
-dummy_input = torch.randn(1, 768, 256)
-dummy_f0 = torch.randn(1, 1, 256)
-dummy_amp = torch.randn(1, 1, 256)
-torch.onnx.export(
-        Dec,
-        (dummy_input, dummy_f0, dummy_amp),
-        os.path.join(args.outputs, "decoder.onnx"),
-        opset_version=15,
-        input_names=["input", "f0", "amplitude"],
-        output_names=["magnitude", "phase"],
-        dynamic_axes={
-            "input": {0: "barch_size", 2: "length"},
-            "f0" : {0: "batch_size", 2: "length"},
-            "amplitude": {0: "batch_size", 2: "length"},
-            })
-
-if VL is not None:
-    print("Exporting Voice Library")
-    dummy_input = torch.randn(1, 768, 256)
-    torch.onnx.export(
-            VL,
-            dummy_input,
-            os.path.join(args.outputs, "voice_library.onnx"),
-            opset_version=15,
-            input_names=["input"],
-            output_names=["output"],
-            dynamic_axes={
-                "input": {0: "barch_size", 2: "length"}
-                })
-
-
-print("Complete!")
