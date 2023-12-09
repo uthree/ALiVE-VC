@@ -176,7 +176,6 @@ class Filter(nn.Module):
             x = u(x + s)
             x = b(x, c)
         x = self.source_out(x)
-        x = F.tanh(x)
         return x
 
 
