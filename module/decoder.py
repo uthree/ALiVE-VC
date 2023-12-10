@@ -125,7 +125,7 @@ class FilterBlock(nn.Module):
         self.convs = nn.ModuleList([])
         self.convs.append(ModulatedCausalConv1d(input_channels, output_channels, condition_channels, kernel_size, 1))
         for d in range(num_layers-1):
-            for _ in range(2)
+            for _ in range(2):
                 self.convs.append(ModulatedCausalConv1d(output_channels, output_channels, condition_channels, kernel_size, 2**(d+1)))
 
     def forward(self, x, c):
