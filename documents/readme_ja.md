@@ -62,5 +62,9 @@ python3 inference.py -lib voice_library.py
 すると`outputs`という名前のフォルダが自動生成されるので、その中のファイルを再生し、結果を確認する。
 
 ## 参考文献
-- [Vocos](https://arxiv.org/abs/2306.00814)
 - [kNN-VC](https://arxiv.org/abs/2305.18975)
+- [DDSP](https://arxiv.org/abs/2001.04643)
+- [WavLM](https://arxiv.org/abs/2110.13900)
+- [ConvNeXt](https://arxiv.org/abs/2201.03545)
+- [CordVox](https://github.com/uthree/cordvox)
+- [RVC](https://github.com/RVC-Project/Retrieval-based-Voice-Conversion-WebUI)
