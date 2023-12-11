@@ -148,9 +148,8 @@ for epoch in range(args.epoch):
         # Train D.
         OptD.zero_grad()
         wave_fake = wave_fake.detach()
-        wave_recon = wave_recon.detach()
         with torch.cuda.amp.autocast(enabled=args.fp16):
-            logits_fake = D.logits(cut_center_wav(wave_fake)) + D.logits(cut_center_wav(wave_recon))
+            logits_fake = D.logits(cut_center_wav(wave_fake))
             logits_real = D.logits(cut_center_wav(wave))
             loss_d = 0
             for logit in logits_real:
