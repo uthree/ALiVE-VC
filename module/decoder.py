@@ -119,19 +119,34 @@ class ModulatedCausalConv1d(nn.Module):
         return x
 
 
-class FilterBlock(nn.Module):
-    def __init__(self, input_channels, output_channels, condition_channels, kernel_size=5, num_layers=3):
+class FilterResBlock(nn.Module):
+    def __init__(self, channels, condition_channels, kernel_size=5, dilation=1):
         super().__init__()
-        self.convs = nn.ModuleList([])
-        self.convs.append(ModulatedCausalConv1d(input_channels, output_channels, condition_channels, kernel_size, 1))
-        for d in range(num_layers-1):
-            for _ in range(4):
-                self.convs.append(ModulatedCausalConv1d(output_channels, output_channels, condition_channels, kernel_size, 2**(d+1)))
+        self.c1 = ModulatedCausalConv1d(channels, channels, condition_channels, kernel_size, dilation)
+        self.c2 = ModulatedCausalConv1d(channels, channels, condition_channels, kernel_size, dilation)
 
     def forward(self, x, c):
-        for conv in self.convs:
-            F.leaky_relu(x, 0.1)
-            x = conv(x, c)
+        res = x
+        x = F.gelu(x)
+        x = self.c1(x, c)
+        x = F.gelu(x)
+        x = self.c2(x, c)
+        return x + res
+
+
+class FilterBlock(nn.Module):
+    def __init__(self, input_channels, output_channels, condition_channels, kernel_size=5, dilations=3):
+        super().__init__()
+        self.input_conv = nn.Conv1d(input_channels, output_channels, 1)
+        self.blocks = nn.ModuleList([])
+        for d in range(dilations):
+            self.blocks.append(
+                    FilterResBlock(output_channels, condition_channels, kernel_size, 2**d))
+
+    def forward(self, x, c):
+        x = self.input_conv(x)
+        for b in self.blocks:
+            x = b(x, c)
         return x
 
 
@@ -142,7 +157,7 @@ class Filter(nn.Module):
             rates=[2, 2, 8, 10],
             channels=[8, 16, 64, 256],
             kernel_size=5,
-            num_layers=3
+            dilations=3
             ):
         super().__init__()
         self.source_in = nn.Conv1d(1, channels[0], 7, 1, 3)
@@ -161,7 +176,7 @@ class Filter(nn.Module):
         
         for c, c_prev, r in zip(channels, channels_prevs, rates):
             self.ups.append(nn.ConvTranspose1d(c_prev, c, r, r, 0))
-            self.blocks.append(FilterBlock(c, c, feat_channels, kernel_size, num_layers))
+            self.blocks.append(FilterBlock(c, c, feat_channels, kernel_size, dilations))
 
         self.source_out = nn.Conv1d(c, 1, 7, 1, 3)
     
