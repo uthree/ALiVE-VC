@@ -135,13 +135,14 @@ class FilterResBlock(nn.Module):
 
 
 class FilterBlock(nn.Module):
-    def __init__(self, input_channels, output_channels, condition_channels, kernel_size=5, dilations=3):
+    def __init__(self, input_channels, output_channels, condition_channels, kernel_size=5, dilations=3, num_resblocks_per_dilation=2):
         super().__init__()
         self.input_conv = nn.Conv1d(input_channels, output_channels, 1)
         self.blocks = nn.ModuleList([])
         for d in range(dilations):
-            self.blocks.append(
-                    FilterResBlock(output_channels, condition_channels, kernel_size, 2**d))
+            for _ in range(num_resblocks_per_dilation):
+                self.blocks.append(
+                        FilterResBlock(output_channels, condition_channels, kernel_size, 2**d))
 
     def forward(self, x, c):
         x = self.input_conv(x)
