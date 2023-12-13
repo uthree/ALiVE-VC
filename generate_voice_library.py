@@ -20,7 +20,7 @@ args = parser.parse_args()
 
 ds = WaveFileDirectory(
         [args.dataset],
-        length=30720,
+        length=7680,
         max_files=-1
         )
 
@@ -34,7 +34,7 @@ VL = VoiceLibrary()
 print("Generating Library...")
 for i, wave in tqdm(enumerate(dl), total=512):
     n = random.randint(0, 511)
-    t = CE(spectrogram(wave))[0, :, random.randint(0, 31)]
+    t = CE(spectrogram(wave))[0, :, random.randint(0, 7)]
     VL.tokens.data[:, :, n] = t
     if i == 512:
         break
