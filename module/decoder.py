@@ -205,7 +205,6 @@ class Decoder(nn.Module):
     def forward(self, x, f0, phi=0, harmonics_scale=1, crop=(0, -1)):
         x = self.feature_extractor(x, f0)
         source, phi = self.harmonic_oscillator(x, f0, phi, crop) * harmonics_scale
-        out = self.filter(source, x)
         out = out.squeeze(1)
         return out, phi
 

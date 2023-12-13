@@ -82,7 +82,7 @@ if args.target != "NONE":
     print("loading target...")
     wf, sr = torchaudio.load(args.target)
     wf = wf.to(device)
-    wf = torchaudio.functional.resample(wf, sr, 48000)
+    wf = torchaudio.functional.resample(wf, sr, 16000)
     wf = wf / wf.abs().max()
     wf = wf[:1]
     tgt = CE(spectrogram(wf)).detach()[:, :, ::4]
@@ -94,7 +94,6 @@ if args.voice_library_path != "NONE":
     tgt = torch.cat([tgt, VL.tokens], dim=2)
 
 print(f"Loaded {tgt.shape[2]} words.")
-
 
 
 stream_input = audio.open(
@@ -123,8 +122,8 @@ bar = tqdm()
 downsample_rate = 16000 / args.output_sr
 internal_chunk = int(chunk * downsample_rate)
 center = int(internal_chunk * buffer_size) // 2
-end_of_output = center + internal_chunk // 2 - 1
-begin_of_output = center - internal_chunk // 2 - 1 
+end_of_output = center + internal_chunk // 2
+begin_of_output = center - internal_chunk // 2
 
 phi = 0
 
