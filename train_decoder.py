@@ -105,6 +105,7 @@ SchedulerD = torch.optim.lr_scheduler.CosineAnnealingLR(OptD, 5000)
 
 mel = torchaudio.transforms.MelSpectrogram(16000, n_fft=1280, hop_length=320, n_mels=80).to(device)
 def log_mel(x):
+    x = x.to(torch.float)
     x = mel(x)
     x = torch.log(x + 1e-4)
     return x
