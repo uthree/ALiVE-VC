@@ -111,6 +111,8 @@ mel = torchaudio.transforms.MelSpectrogram(16000, n_fft=1280, hop_length=320, n_
 def log_mel(x):
     x = x.to(torch.float)
     x = mel(x)
+    x[x.isnan()] = 0
+    x[x.isinf()] = 0
     x = torch.log(x + 1e-4)
     return x
 
