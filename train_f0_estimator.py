@@ -25,7 +25,6 @@ parser.add_argument('-lr', '--learning-rate', default=1e-4, type=float)
 parser.add_argument('-len', '--length', default=65536, type=int)
 parser.add_argument('-m', '--max-data', default=-1, type=int)
 parser.add_argument('-fp16', default=False, type=bool)
-parser.add_argument('-gacc', '--gradient-accumulation', default=1, type=int)
 
 args = parser.parse_args()
 
@@ -67,7 +66,6 @@ for epoch in range(args.epoch):
         spec = spectrogram(wave)
         f0 = f0.to(device)
         
-        # Train G.
         optimizer.zero_grad()
         with torch.cuda.amp.autocast(enabled=args.fp16):
             f0 = torch.floor(f0).to(torch.long)

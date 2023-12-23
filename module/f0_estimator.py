@@ -7,7 +7,7 @@ from module.common import ConvNeXt1d, ChannelNorm
 
 class F0Estimator(nn.Module):
     def __init__(self,
-                 n_fft=1280,
+                 n_fft=3840,
                  internal_channels=256,
                  hidden_channels=512,
                  output_channels=4096,
@@ -26,7 +26,7 @@ class F0Estimator(nn.Module):
         x = self.output_layer(x)
         return x
 
-    def estimate(self, x, downsample_factor=1):
+    def estimate(self, x):
         dtype = x.dtype
         with torch.no_grad():
             x = self.forward(x)
